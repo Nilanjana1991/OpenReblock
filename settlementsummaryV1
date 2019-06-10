@@ -1,1 +1,566 @@
+#Created by: Nilanjana Bhattacharya 
+#Last updated: 28th February 2019
+#Title: Code to summarize citywide status of informal settlements for city datasets
+#Countries that are included in analysis: Nigeria, Liberia, Sierra Leaone, South Africa, Ghana, Namibia, Uganda, Senegal, Kenya, Tanzania, Zimbabwe
+#Tanzania and Malawi have answered a subset of the survey/a different survey 
+#-------------------------------------------------
+setwd("E:\\Open Reblock")
+
+#setting up packages
+library("tidyverse")
+library("stringi")
+library("sf")
+
+#Creating database 
+#List of countries added here
+rm(list = ls())
+country <- "liberia"  
+
+    file_input <- paste0("Datasets\\",country,".csv")
+    df <- read.csv(file_input, stringsAsFactors = FALSE)
+
+  #EXTRACTING SHAPE OF THE POLYGON
+  str1 <- "POLYGON(("
+  str2 <- "))"
+  #Manipulating to switch the lat and long variables 
+  df$verification.A0_Boundary[df$verification.A0_Boundary=="n/a"] <- NA
+  temp <- str_split(df$verification.A0_Boundary, ";") #CHANGE THE SEPARATOR BASIS THE INPUT FILE
+  for (i in 1:length(temp)){
+    for(j in 1:length(temp[[i]])){
+      temp2 <- str_split(temp[[i]][j], " ", 4)
+      temp[[i]][j] <- paste(temp2[[1]][2],temp2[[1]][1])
+    }
+  }
+  for (i in 1:nrow(df)){
+    df$wkt[i] <- stri_join_list(as.list(temp[[i]]), collapse = ", ")
+    df$wkt[i] <- paste0(str1, df$wkt[i], str2)
+  }
+
+  #EXTRACTING SHAPE OF THE POLYGON
+  str1_1 <- "POINT("
+  str2_1 <- ")"
+  #Manipulating to switch the lat and long variables 
+  df$verification.A0_Boundary[df$verification.A0_Boundary=="n/a"] <- NA
+  df$verification.A0_Boundary[df$verification.A0_Boundary==""] <- NA
+  temp <- str_split(df$verification.A0_Boundary, ",") #CHANGE THE SEPARATOR BASIS THE INPUT FILE
+  for (i in 1:length(temp)){
+    if(!is.na(temp[i])){
+    for(j in 1:length(temp[[i]])){
+      temp2 <- str_split(temp[[i]][j], " ", 4)
+      temp[[i]][j] <- paste(str1_1, temp2[[1]][2],temp2[[1]][1], str2_1)
+      temp[[i]][j] <- as.character(temp[[i]][j])
+    }
+    }
+  }
+  for (i in 1:nrow(df)){
+    df$wkt2[i] <- stri_join_list(as.list(temp[[i]]), collapse = ", ")
+  }
+    
+  #EXTRACTING GPS COORDINATIONS
+  df$lat <- df$section_B._B1_GPS_latitude
+  df$long <- df$section_B._B1_GPS_longitude
+  #ADDING COUNTRY NAME TO THE DATABASE
+  arr <- data.frame(str_split_fixed(df$section_B.B3_Country, "_", 2))
+  df$country <- arr[,2]
+  #ADDING SETTLEMENT NAME TO THE DATABASE
+  df$settlementname <- df$section_B.B7_Settlement_Name_Community
+  #ADDING AREA OF THE SETTLEMENT 
+  df$area <- as.numeric(df$section_B.B2b_Area_acres)
+
+  #OWNERSHIP OF LAND
+  #Ownership of settlement land weighted by area of settlement
+  #Classifying ownership as Airport, Railway, Port Trust, Other govt, Private Ownership
+  df$section_B.B13_Ownership_railway <- as.numeric(df$section_B.B13_Ownership_railway)
+  df$section_B.B13_Ownership_airport_authority <- as.numeric(df$section_B.B13_Ownership_airport_authority)
+  df$section_B.B13_Ownership_municipality <- as.numeric(df$section_B.B13_Ownership_municipality)
+  df$section_B.B13_Ownership_other_government_percentage <- as.numeric(df$section_B.B13_Ownership_other_government_percentage)
+  df$section_B.B13_Ownership_port_trust <- as.numeric(df$section_B.B13_Ownership_port_trust)
+  df$section_B.B13_Ownership_church_land <- as.numeric(df$section_B.B13_Ownership_church_land)
+  df$section_B.B13_Ownership_crown_land <- as.numeric(df$section_B.B13_Ownership_crown_land)
+  df$section_B.B13_Ownership_defense <- as.numeric(df$section_B.B13_Ownership_defense)
+  df$section_B.B13_Ownership_private_owner <- as.numeric(df$section_B.B13_Ownership_private_owner)
+  df$section_B.B13_Ownership_customary_land <- as.numeric(df$section_B.B13_Ownership_customary_land)
+  df$section_B.B13_Ownership_other_percentage <- as.numeric(df$section_B.B13_Ownership_other_percentage)
+  df$section_B.B13_Ownership_Unknown <- as.numeric(df$section_B.B13_Ownership_Unknown)
+
+  own_ar<-seq(1,9,1)
+  tot_area <- sum(df$area, na.rm = TRUE)
+  own_ar[1] <- sum(df$area*df$section_B.B13_Ownership_railway, na.rm = TRUE)/tot_area #railway
+  own_ar[2] <- sum(df$area*df$section_B.B13_Ownership_airport_authority, na.rm = TRUE)/tot_area #airport authority
+  own_ar[3] <- sum(df$area*(df$section_B.B13_Ownership_municipality+df$section_B.B13_Ownership_other_government_percentage), na.rm = TRUE)/tot_area #government
+  own_ar[4] <- sum(df$area*df$section_B.B13_Ownership_port_trust, na.rm = TRUE)/tot_area #port trust
+  own_ar[5] <- sum(df$area*(df$section_B.B13_Ownership_church_land+df$section_B.B13_Ownership_crown_land), na.rm = TRUE)/tot_area #church/crown
+  own_ar[6] <- sum(df$area*df$section_B.B13_Ownership_defense, na.rm = TRUE)/tot_area #defense
+  own_ar[7] <- sum(df$area*df$section_B.B13_Ownership_private_owner, na.rm = TRUE)/tot_area #Private ownership
+  own_ar[8] <- sum(df$area*df$section_B.B13_Ownership_customary_land, na.rm = TRUE)/tot_area #customary
+  own_ar[9] <- sum(df$area*(df$section_B.B13_Ownership_other_percentage+df$section_B.B13_Ownership_Unknown)/tot_area, na.rm = TRUE)/tot_area#Other
+  #Summarizing at the city level
+  own_labels <- c("Railway","Airport Authority", "Government", "Port Trust", "Church/Crown", "Defense", "Private Ownership", "Customary", "Other")
+  #Create dataframe for ownership
+  own_df<- data.frame(own_labels,own_ar) 
+  df$private_owner <- as.numeric(df$section_B.B13_Ownership_private_owner)
+ 
+  #EVICTION THREAT COUNT  
+  #Data cleaning: Replace NA with "None" since NA here is not missing data but means none
+  df$Evict_Threat_Count <- as.numeric(df$section_E.E1B_Evition_Threat_Count)
+  df$Evict_Threat_Count[df$Evict_Threat_Count>500] <- NA #What is the reasonable number of discrete eviction threats that might happen
+  df$Evict_Serious <- df$section_E.E2B_Current_Eviction_Seriousness
+  df$Evict_Serious[df$Evict_Serious=="n/a"] <- NA
+  levels(df$Evict_Serious) <- c(levels(df$Evict_Serious), "No Response")
+  df$Evict_Serious[df$Evict_Serious==""] <- "No Response"
+  df$Evict_Serious[is.na(df$Evict_Serious)] <- "No Response"
+  droplevels(df$Evict_Serious, c("", NA))
+
+  #ECONOMIC ACTIVITY INDICATOR
+  #What percentage of structures is used for business, renting etc
+  df$bus_usage <- (as.numeric(df$section_C.C3_Structures_Business)+as.numeric(df$section_C.C2_Structures_Residential_Business))/as.numeric(df$section_C.C5_Structures_Total)
+  #Allocating number values to renting
+  df$rent_usage[df$section_C.C13_Renting=="no_rent"]<-0
+  df$rent_usage[df$section_C.C13_Renting=="few_rent"]<-15
+  df$rent_usage[df$section_C.C13_Renting=="less_rent"]<-25
+  df$rent_usage[df$section_C.C13_Renting=="half_rent"]<-50
+  df$rent_usage[df$section_C.C13_Renting=="most_rent"]<-75
+
+  #Ranking development priorities across settlements weighted by short term, medium term and long term needs
+  #Initial algorithm -  Score each priority inverse of rank X (2 = HT, 1 = MT, 0.5 = ST)
+  pr_names <- c("water_drainage", "sanitation_sewage", "tenure_security", "housing", "electricity", "land_tenure", "other")
+  
+  #putting weights to short term, medium term and long term priorities
+  df$section_Q.Q1a_Priority_Term <- as.character(df$section_Q.Q1a_Priority_Term)
+  df$section_Q.Q2a_Priority_Term <- as.character(df$section_Q.Q2a_Priority_Term)
+  df$section_Q.Q3a_Priority_Term <- as.character(df$section_Q.Q3a_Priority_Term)
+  df$section_Q.Q4a_Priority_Term <- as.character(df$section_Q.Q4a_Priority_Term)
+  df$section_Q.Q5a_Priority_Term <- as.character(df$section_Q.Q5a_Priority_Term)
+
+  #Setting weights for short, medium and long term preferences
+  short <- 10
+  medium <- 5
+  long <- 1
+
+  df$Priority_Term_1[df$section_Q.Q1a_Priority_Term=="short"]<-short
+  df$Priority_Term_1[df$section_Q.Q1a_Priority_Term=="medium"|df$section_Q.Q1a_Priority_Term==""]<-medium
+  df$Priority_Term_1[df$section_Q.Q1a_Priority_Term=="long"]<-long
+  df$Priority_Term_1[df$section_Q.Q1a_Priority_Term=="n/a"]<-long
+  
+  df$Priority_Term_2[df$section_Q.Q2a_Priority_Term=="short"]<-short
+  df$Priority_Term_2[df$section_Q.Q2a_Priority_Term=="medium"|df$section_Q.Q1a_Priority_Term==""]<-medium
+  df$Priority_Term_2[df$section_Q.Q2a_Priority_Term=="long"]<-long
+  df$Priority_Term_2[df$section_Q.Q2a_Priority_Term=="n/a"]<-long
+  
+  df$Priority_Term_3[df$section_Q.Q3a_Priority_Term=="short"]<-short
+  df$Priority_Term_3[df$section_Q.Q3a_Priority_Term=="medium"|df$section_Q.Q1a_Priority_Term==""]<-medium
+  df$Priority_Term_3[df$section_Q.Q3a_Priority_Term=="long"]<-long
+  df$Priority_Term_3[df$section_Q.Q3a_Priority_Term=="n/a"]<-long
+  
+  df$Priority_Term_4[df$section_Q.Q4a_Priority_Term=="short"]<-short
+  df$Priority_Term_4[df$section_Q.Q4a_Priority_Term=="medium"|df$section_Q.Q1a_Priority_Term==""]<-medium
+  df$Priority_Term_4[df$section_Q.Q4a_Priority_Term=="long"]<-long
+  df$Priority_Term_4[df$section_Q.Q4a_Priority_Term=="n/a"]<-long
+  
+  df$Priority_Term_5[df$section_Q.Q5a_Priority_Term=="short"]<-short
+  df$Priority_Term_5[df$section_Q.Q5a_Priority_Term=="medium"|df$section_Q.Q1a_Priority_Term==""]<-medium
+  df$Priority_Term_5[df$section_Q.Q5a_Priority_Term=="long"]<-long
+  df$Priority_Term_5[df$section_Q.Q5a_Priority_Term=="n/a"]<-long
+
+  #Set up dataframe to record settlement preferences 
+  #Solving location problems
+  
+  #Utility scores for electricity per settlement
+  for (i in c(1:length(pr_names))){
+    cn <- as.character(pr_names[i])
+    df$cn[df$section_Q.Q1_Priority1==cn] <- 10*df$Priority_Term_1[df$section_Q.Q1_Priority1==cn]
+    df$cn[df$section_Q.Q2_Priority2==cn] <- 8*df$Priority_Term_2[df$section_Q.Q2_Priority2==cn]
+    df$cn[df$section_Q.Q3_Priority3==cn] <- 6*df$Priority_Term_3[df$section_Q.Q3_Priority3==cn]
+    df$cn[df$section_Q.Q4_Priority4==cn] <- 4*df$Priority_Term_4[df$section_Q.Q4_Priority4==cn]
+    df$cn[df$section_Q.Q5_Priority5==cn] <- 2*df$Priority_Term_5[df$section_Q.Q5_Priority5==cn]
+    colnames(df)[colnames(df)=="cn"] <- as.character(pr_names[i])
+  }
+  
+  #Combining "tenure_security" and "land_tenure" into a single column
+  df$tenure_security[is.na(df$land_tenure)&is.na(df$tenure_security)] <- NA_real_
+  df$tenure_security[is.na(df$tenure_security)&(!is.na(df$land_tenure))] <- df$land_tenure[is.na(df$tenure_security)&(!is.na(df$land_tenure))]
+  df$tenure_security[!is.na(df$tenure_security)&(!is.na(df$land_tenure))] <- df$land_tenure[!is.na(df$tenure_security)&(!is.na(df$land_tenure))]+
+    df$tenure_security[!is.na(df$tenure_security)&(!is.na(df$land_tenure))]
+  df <- df[!(names(df) %in% c("land_tenure"))]
+  #Trimming the location problems by removing the duplicate "land tenure"
+  pr_names <- c("water_drainage", "sanitation_sewage", "tenure_security", "housing", "electricity", "other")
+
+
+  #INDICES: QUANTIFYING LEVEL OF SERVICE IN INFORMAL SETTLEMENTS -----------
+  #First index "Prosperity Index" as described by UN Habitat publication in 2016
+  #Second Index: Brelsford, Lobo and Bettencourt: Multiplicative index using water, electricity, sanitation and shelter access
+  
+  
+  #BENCHMARKS needed to standardize the CPI HI indicators
+  ind_benchmark_names <- c("water","sani","shelter", "electricity", "liv_area", "density") #Add more names to this array
+  #Benchmarks from World Bank 2014: 
+  benchmarks <- data.frame(c(50,100),       #water
+                           c(15,100),       #sanitation
+                           c(84.8,98.4),    #shelter
+                           c(7,100),        #electricity
+                           c(1.26, 2.76),   #living area
+                           c(0,61))         #density
+  colnames(benchmarks)<- ind_benchmark_names
+  rownames(benchmarks)<- c("min","max")
+  
+  #ACCESS TO INFRASTRUCTURE CALCULATIONS  --------------------------------
+  #This includes access to improved housing, safe water, improved sanitation, optimal living area (drawing from household size) and optimal population density
+  #This information can be derived from survey records but there are deviations necessary to interprete the information correctly
+  #Where necessary, these deviations have been made and listed
+  
+  #I1: Access to Improved Water
+  #100*(Number of households with sustainable access to piped water/total number of households)
+
+  #Data cleaning - Access to water
+  df$section_F.F1_Working <- as.numeric(df$section_F.F1_Working)
+  df$section_F.F2_Working <- as.numeric(df$section_F.F2_Working)
+  df$section_F.F3_Working <- as.numeric(df$section_F.F3_Working)
+  df$section_F.F4_Working <- as.numeric(df$section_F.F4_Working)
+  df$section_F.F6_Count <- as.numeric(df$section_F.F6_Count)
+  df$section_C.C9_Households <- as.numeric(df$section_C.C9_Households)
+
+  df$section_F.F1_Working[is.na(df$section_F.F1_Working)]<-0
+  df$section_F.F2_Working[is.na(df$section_F.F2_Working)]<-0
+  df$section_F.F3_Working[is.na(df$section_F.F3_Working)]<-0
+  df$section_F.F4_Working[is.na(df$section_F.F4_Working)]<-0
+  df$section_F.F4_Working[df$section_F.F4_Quality=="not_safe"]<-0
+  df$section_F.F6_Count[is.na(df$section_F.F6_Count)]<-0
+  df$section_F.F6_Count[df$section_F.F6_Quality=="not_safe"]<-0
+
+  #Assumption: Survey measure of number of individual taps that are working is an approximate measure of access to piped water to a household
+  #Deviation: Added shared taps in working order/no. of households + Added working number of communal taps/no. of households+
+  #No. of boreholes with safe water/no. of households + No. of safe springs/no. of households
+  #Try an alternative calculation of all sources together 
+  df$access_water <- df$section_F.F1_Working + 
+    df$section_F.F2_Working/df$section_C.C9_Households + 
+    df$section_F.F3_Working/df$section_C.C9_Households + 
+    df$section_F.F4_Working/df$section_C.C9_Households +
+    df$section_F.F6_Count/df$section_C.C9_Households 
+  df$access_water <- (100*df$access_water)/df$section_C.C9_Households #Logging unstandardized value for use in regressions
+  df$access_water[df$access_water>100] <- 100
+   #Approximate water index gap from zero
+  df$access_water_std <- 100*(df$access_water-benchmarks$water[1])/(benchmarks$water[2]-benchmarks$water[1])
+  df$access_water_std[df$access_water_std>100] <- 100 #Cap the index at 100 as per definition
+
+  #I2: Access To Sanitation 
+  #100*(Number of households with improved sanitation/Total no. of households)
+  #Improved sanitation incl. flush, pour flush, septic tank
+  #Modification: Individual toilets count as one, shared toilet seats or public toilet seats is discounted by the total no. of households
+  
+  #Data cleaning - Access to sanitation
+  #Replace blanks in the database with zeros
+  df$section_G.G7_Seats <- as.numeric(df$section_G.G7_Seats)
+  df$section_G.G8_Seats <- as.numeric(df$section_G.G8_Seats)
+  df$section_G.G9_Seats <- as.numeric(df$section_G.G9_Seats)
+  
+  df$section_G.G7_Seats[is.na(df$section_G.G7_Seats)]<-0
+  df$section_G.G8_Seats[is.na(df$section_G.G8_Seats)]<-0
+  df$section_G.G9_Seats[is.na(df$section_G.G9_Seats)]<-0
+  
+  #Logical Coefficients (Improved = 1, Unimproved = 0)
+  #When Toilet types gets inputted as characters
+  individual <- as.integer(df$section_G.G7_Toilet_Type.chemical=="TRUE"|df$section_G.G7_Toilet_Type.ecosan=="TRUE"|df$section_G.G7_Toilet_Type.pour_flush=="TRUE"|df$section_G.G7_Toilet_Type.flush=="TRUE")
+  shared <- as.integer(df$section_G.G8_Toilet_Type.chemical=="TRUE"|df$section_G.G8_Toilet_Type.ecosan=="TRUE"|df$section_G.G8_Toilet_Type.pour_flush=="TRUE"|df$section_G.G8_Toilet_Type.flush=="TRUE")
+  communal <- as.integer(df$section_G.G9_Toilet_Type.chemical=="TRUE"|df$section_G.G9_Toilet_Type.ecosan=="TRUE"|df$section_G.G9_Toilet_Type.pour_flush=="TRUE"|df$section_G.G9_Toilet_Type.flush=="TRUE")
+  
+  #When toilet types get inputted as logical values
+  #individual <- as.integer(df$section_G.G7_Toilet_Type.chemical|df$section_G.G7_Toilet_Type.ecosan|df$section_G.G7_Toilet_Type.pour_flush|df$section_G.G7_Toilet_Type.flush)
+  #shared <- as.integer(df$section_G.G8_Toilet_Type.chemical|df$section_G.G8_Toilet_Type.ecosan|df$section_G.G8_Toilet_Type.pour_flush|df$section_G.G8_Toilet_Type.flush)
+  #communal <- as.integer(df$section_G.G9_Toilet_Type.chemical|df$section_G.G9_Toilet_Type.ecosan|df$section_G.G9_Toilet_Type.pour_flush|df$section_G.G9_Toilet_Type.flush)
+  
+  individual[is.na(individual)]<-0
+  shared[is.na(shared)]<-0
+  communal[is.na(communal)]<-0
+  
+  #Counting no. of households with minimum access to improved sanitation 
+  df$improved_sanitation <- df$section_G.G7_Seats*individual + 
+    shared*(df$section_G.G8_Seats/df$section_C.C9_Households) + 
+    communal*(df$section_G.G9_Seats/df$section_C.C9_Households)
+  df$improved_sanitation <- 100*df$improved_sanitation/df$section_C.C9_Households
+  df$improved_sanitation[df$improved_sanitation>100] <- 100
+  #Approximate sanitation index gap from zero
+  df$improved_sanitation_std <- 100*(df$improved_sanitation-benchmarks$sani[1])/(benchmarks$sani[2]-benchmarks$sani[1])
+  df$improved_sanitation_std[df$improved_sanitation_std>100] <- 100 #More than 100% households cannot have ideal access
+
+  #I3: Access To Improved Shelter 
+  #100*(Number of households with improved shelter/Total no. of households)
+  #Improved shelters incl. durable permanent structures that are built in relatively non hazardous locations
+  #Modification: We consider all permanent structures as durable
+  #Modification: How hazardous is this location? (Count the number of issues that exist)
+
+#When location problems are inputted as characters, count "hazardous" differently than when logical variables 
+  
+  if(is.character(df$section_D.D1_Location_Problems.canal)){
+    df$hazardous <- ifelse(df$section_D.D1_Location_Problems.canal=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.slope=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.flood_prone_area=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.garbage_dump=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.road_side=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.open_drains=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.water_body=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.industrial_hazards=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.mine_dump=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.railway_track=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.sinking_soil=="TRUE", 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.under_power_lines=="TRUE", 1, 0)
+  } else {
+    df$hazardous <- ifelse(df$section_D.D1_Location_Problems.canal, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.slope, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.flood_prone_area, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.garbage_dump, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.road_side, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.open_drains, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.water_body, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.industrial_hazards, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.mine_dump, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.railway_track, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.sinking_soil, 1, 0)+
+     ifelse(df$section_D.D1_Location_Problems.under_power_lines, 1, 0)
+  }
+  
+  #Percentage of structures that are permanent shelters that act as residential units is an estimate figure
+  #Permanent structures are discounted by the number of hazards people count among their living standards
+  df$access_shelter <- 100*as.numeric(df$section_C.C6_Structures_Permanent)*as.numeric(df$section_C.C1_Structures_Residential)/as.numeric(df$section_C.C5_Structures_Total)^2
+  df$access_shelter <- case_when (
+    (df$hazardous==0) ~ df$access_shelter, 
+    (df$hazardous!=0) ~ df$access_shelter/df$hazardous
+  )
+  df$access_shelter[df$access_shelter>100] <- 100
+  #Approximate Improved Shelter Standardized Index
+  df$access_shelter_std <- 100*(df$access_shelter-benchmarks$shelter[1])/(benchmarks$shelter[2]-benchmarks$shelter[1])
+  df$access_shelter_std[df$access_shelter_std>100] <- 100
+  
+  #I4: Access to Electricity 
+  #100*(Number of households with access to the city grid/Total no. of households)
+  #Convert NA's into zeros
+  df$section_J.J2_Electricity_Households <- as.numeric(df$section_J.J2_Electricity_Households)
+  df$section_J.J2_Electricity_Households[is.na(df$section_J.J2_Electricity_Households)]<-0
+  
+  #Evaluate percentage of households with electricity. Allocate NA when partial data is available or incorrect data
+  df$access_electricity <- case_when (
+    (df$section_C.C9_Households < df$section_J.J2_Electricity_Households) ~ NA_real_, 
+    (df$section_C.C9_Households==0) ~ NA_real_,
+    TRUE ~ 100*df$section_J.J2_Electricity_Households/(df$section_C.C9_Households)
+   )  
+  df$access_electricity[df$access_electricity>100] <- 100
+  
+  #Standardizing the index 
+  df$access_electricity_std <- 100*(df$access_electricity-benchmarks$electricity[1])/(benchmarks$electricity[2]-benchmarks$electricity[1])
+  df$access_electricity_std[df$access_electricity_std>100] <- 100
+  
+  #I5: Sufficient Living Area 
+  #100*Number of households with less than four persons per room/Total no. of households
+  #Deviation: Initial definition is sufficient living area is 100 if av. household size < 4 
+  df$liv_area <- case_when (
+    (df$section_C.C10_Household_Size < 4) ~ 100, 
+      TRUE ~ 0
+  )
+  #Standardized index 
+  df$liv_area_std <- 100*(df$liv_area^0.25-benchmarks$liv_area[1])/(benchmarks$liv_area[2]-benchmarks$liv_area[1])
+  df$liv_area_std <- case_when (
+    (df$liv_area > benchmarks$liv_area[2]) ~ 100,
+    (df$liv_area < benchmarks$liv_area[1]) ~ 0, 
+    TRUE ~ df$liv_area
+  )
+
+  #I6: Population Density 
+  #This measure uses density in people/acre terms
+  df$section_C.C14_density[is.na(df$section_C.C14_density)] <- 0
+  #Density cannot be 5000 persons per acre, adjust this threshold to remove outliers 
+  df$pop_density <- as.numeric(df$section_C.C14_density)
+  df$pop_density[df$pop_density>1000] <- NA
+  df$pop_density[df$pop_density<0] <- NA
+  #Standardizing this index 
+  df$pop_density_std <- 100*(1-(as.numeric(df$pop_density)-benchmarks$density[2])/(benchmarks$density[2]-benchmarks$density[1]))
+  df$pop_density_std[df$pop_density_std< 0] <- 0
+  df$pop_density_std[df$pop_density_std > 100] <- 100
+
+  #I7: Legal Status: Is this a legal settlement? Multiply with private ownership to find this
+  df$legal[df$section_B.B14_Status=="n/a"|df$section_B.B14_Status=="not_applicable"]<-NA
+  df$legal[df$section_B.B14_Status=="declared_legal_protected"|df$section_B.B14_Status=="resettled"] <- 1
+  df$legal[df$section_B.B14_Status=="undeclared_illegal_unprotected"]<-0
+  df$legal <- df$legal*df$private_owner
+
+  #SUMMARY: CALCULATING INDICES ---------------------------------------
+  
+  #CPI - HI is a standardized index using benchmarks
+  #Reference: Measurement of city prosperity - Methodology and Metadata
+  ind_names1 <- c("access_water_std","improved_sanitation_std", "access_shelter_std", "access_electricity_std", "pop_density_std", "liv_area_std") #Add to this list as we go
+  access <- df[names(df) %in% ind_names1]#check the column numbers
+  #Calculating CPI-HI
+  for (i in c(1:nrow(access))){
+    n <- sum(is.na(access[i,]))
+    df$HI[i] <- sum(access[i,])/(length(access[i,])-n)
+  }
+  rm(access)
+
+  #CALCULATING Multiplicative Index
+  ind_names2 <- c("access_water","improved_sanitation", "access_shelter", "access_electricity")
+  access <- df[names(df) %in% ind_names2]
+  #Calculating MI
+  for (i in c(1:nrow(access))){
+    df$MI[i] <- (access[i,1]*access[i,2]*access[i,3]*access[i,4])^0.25 
+  }
+  rm(access)
+
+  #CALCULATING SECURE TENURE INDEX 
+  ind_names3 <- c("access_water","improved_sanitation", "access_shelter", "access_electricity", "legal")
+  access <- df[names(df) %in% ind_names3]
+  #Calculating STI
+  for (i in c(1:nrow(access))){
+    df$STI[i] <- 0.258*df$access_water[i]+0.238*df$improved_sanitation[i]+0.263*df$access_shelter[i]+0.234*df$access_electricity[i]+0.261*df$legal[i] #This is normalized on "subplaces" in a city at the moment. Need help to understand this better
+  }
+
+  #CREATING CORRELATION MATRIX FOR OUTPUT
+  #What columns are part of the correlation matrix?
+  col_corr <- c("lat", "long", "area", "wkt2", "country", "settlementname", "Evict_Threat_Count", "Evict_Serious", "private_owner", "rent_usage", "bus_usage", "pop_density", "hazardous", "HI", "MI", "STI")
+  acc_names <- c("access_water","improved_sanitation", "access_shelter", "access_electricity", "pop_density", "liv_area", "legal") #Add to this list as we go
+  col_corr <- c(col_corr, pr_names, acc_names, ind_names1, "verification.A0_Boundary")  
+  output_corr <- df[names(df) %in% col_corr]
+  shape <- output_corr %>%
+    filter(!is.na(wkt2)) %>%
+    select(settlementname, wkt2) 
+  
+  
+  st_polygon(
+    list(
+     z<- as.data.frame(matrix(unlist(df$verification.A0_Boundary),ncol=1,byrow=TRUE)) %>% 
+       filter(!is.na(V1))
+     gsub
+      
+      )
+    
+    )   
+  %>%
+    st_as_sf(wkt = "wkt2", crs = 4326)
+  
+  #Populating missing columns in output dataframe 
+  if (ncol(output_corr)<length(col_corr)){
+    mis_col <- setdiff(col_corr, colnames(output_corr))
+    for (i in mis_col){
+      output_corr$mis <- NA
+      colnames(output_corr)[colnames(output_corr)=="mis"] <- mis_col[i]
+    }
+  } else {
+    #left empty
+  }
+  file_output <- paste0("Datasets\\Settlement_Summary(", country,").csv")
+  write.csv(output_corr, file_output)
+
+  #COUNTRY WISE SETTLEMENT PROFILE SUMMARY -------------------------------------------------
+  
+  #Percentages of land ownership at city level represented in a piechart
+  own_pie <- ggplot(own_df, aes(x="", y=own_ar, fill=own_labels))+
+    geom_bar(width = 1, stat = "identity")+
+    coord_polar("y", start=0)+
+    ggtitle("Ownership of Land")
+  print(own_pie)
+  file_output <- paste0("Viz\\Ownership of Land (", country,").png")
+  ggsave(file_output, own_pie, height = 8)  
+
+  #Identify places with most "bang for the buck" - high business usage, density and eviction threats
+  p <- ggplot(df, aes(x=log10(df$pop_density+1), y=df$bus_usage, col=df$Evict_Serious, size = as.numeric(df$section_C.C11_Population_Estimate)))+
+    geom_point()+
+    geom_text(aes(label = df$section_B.B7_Settlement_Name_Community),nudge_y=0.02, size = 3, check_overlap = TRUE)+
+    labs(x = "log(Density), base = 10", y = "Business Activity Levels", colour = "Eviction Threat", size = "Population")+
+    ggtitle("Identifying High Risk High Value Communities")
+  print(p)
+  file_output <- paste0("Viz\\Business Usage VS Settlement Density (", country,").png")
+  ggsave(file_output, p, width = 24, height = 8)
+
+  #Perception of tenure security/seriousness of evictions
+  b <- ggplot(df, aes(x=Evict_Serious, y=Evict_Threat_Count))+
+    geom_boxplot()+
+    ggtitle("Eviction Threats across Settlements")
+  print(b)
+  file_output <- paste0("Viz\\Eviction Threats Levels across Settlements (", country,").png")
+  ggsave(file_output, b, width = 10, height = 8)
+
+  #Plotting the relative utility distributions to solve location problems 
+  #Subsetting preference figure
+  utility <- df[names(df) %in% pr_names]#check the column numbers
+  utility <- stack(utility)
+  utility <- subset(utility, !is.na(utility$values))
+  q <- ggplot(utility, aes(x = values)) +
+    stat_density(aes(group = ind, color = ind), position="identity",geom="line",adjust = 1.5, kernel = "gaussian", size = 1)+
+    scale_x_continuous(limits = c(50,100))
+    ggtitle("Community priorities to solve location problems")
+  print(q)
+  file_output <- paste0("Viz\\Community priorities to solve location problems (", country,").png")
+  ggsave(file_output, q, width = 15, height = 9)
+  
+  #Plotting access 
+  access <- df[names(df) %in% ind_names2]#check the column numbers
+  access <- stack(access)
+  access <- subset(access, !is.na(access$values))
+  sp1 <- ggplot(access, aes(x=values))+
+    geom_histogram()+
+    ggtitle("% Households with Access > Benchmark: Frequency Distribution")+
+    facet_wrap(. ~ ind, ncol=2)+
+    xlab("% Households (Calculated per settlement)")
+  print(sp1)
+  file_output <- paste0("Viz\\Settlements with Access above benchmarks (", country,").png")
+  ggsave(file_output, sp1, width = 10, height = 9)
+
+  #Plotting the index distribution
+  i_names <- c("HI", "MI", "STI")
+  index <- df[names(df) %in% i_names]
+  index <- stack(index)
+  index <- subset(index, !is.na(index$values))
+  index <- subset(index, !is.infinite(index$values))
+  a <- ggplot(index, aes(x = values)) +
+    stat_density(aes(group = ind, color = ind), position="identity",geom="line",adjust = 1, kernel = "gaussian", size = 1)+
+    ggtitle("Indices for Settlements")
+  print(a)
+  file_output <- paste0("Viz\\Index Distribution for Settlements (", country,").png")
+  ggsave(file_output, a, width = 16, height = 8)
+ 
+  library(ggplot2)
+  library(dplyr)
+  library(readr)
+  library(reshape2)
+  library(tidyverse)
+
+  #colnames(df) <- tolower(gsub("[^[:alnum:]| ]", "_", colnames(df)))
+  colnames(df) <- tolower(colnames(df))
+  
+  df1 <- df %>% 
+    filter(section_q.q1_priority1 != 'n/a') %>%
+    select(section_q.q1_priority1,
+           section_q.q2_priority2,
+           section_q.q3_priority3,
+           section_q.q4_priority4,
+           section_q.q5_priority5,
+           section_q.q_otherpriorities,
+           section_b.b7_settlement_name_community) %>%
+    mutate(wt = 1) %>%
+    melt(id.vars = c('section_b.b7_settlement_name_community', 'wt')) %>%
+    filter(variable == 'section_q.q1_priority1') %>%
+    group_by(variable, value) %>%
+    summarize_at(vars(wt), funs(sum)) %>%
+    ungroup() %>%
+    mutate(total = sum(wt),
+           share = wt / total) %>%
+    mutate(value = paste(paste(toupper(substr(gsub("_", " ", value), 1, 1)), substr(gsub("_", " ", value), 2, nchar(gsub("_", " ", value))), sep=""), "", sep=""))
+ 
+  df1$share[df1$value=="Tenure security"]=df1$share[df1$value=="Tenure security"]+df1$share[df1$value=="Land tenure"]
+  df1 <- df1[2:5,]
+  
+  ggplot2::ggplot(df1,  
+                  ggplot2::aes(x = reorder(value,share), 
+                               y = share,
+                               fill = "#ffdf1c425")) +
+    ggplot2::geom_bar(stat = "identity", color = "white")  +
+    ggplot2::geom_text(hjust = 1, fontface='bold', color = 'black', aes(label=paste0(sprintf("%.0f", share*100),"%"))) +
+    #ggplot2::scale_color_manual(values = c('white',"grey20") ) + 
+    ggplot2::coord_flip() + 
+    ggplot2::scale_y_continuous(labels = scales::percent) +
+    ggplot2::labs(y= "Percent", 
+                  x = 'Top priority', 
+                  subtitle = '')  +
+    ggplot2::theme(legend.position ="none",
+                   panel.grid = ggplot2::element_blank(),
+                   panel.border = ggplot2::element_blank(),
+                   panel.background = ggplot2::element_blank(),
+                   legend.title = ggplot2::element_blank())
 
