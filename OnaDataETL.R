@@ -170,8 +170,33 @@ sle_firestruct <- sle_shp %>%
   select(geometry, firestruct, settlement)
 sle_floodstruct <- sle_shp %>%
   select(geometry, floodstruc, settlement)
-sle_malejobs <- sle_shp %>%
-  select(geometry, sle_shp$malejobcon, sle_shp$malejobfis, sle_shp$malejobpet, sle_shp$malejobsdo, sle_shp$malejobser, settlement)
+
+#STRUCTURE DETAILS AND TENURE SECURITY ----------------------------------
+sle_permstruct <- sle_shp %>%
+  select(geometry, permstruct, settlement)
+sle_tempstruct <- sle_shp %>%
+  select(geometry, tempstruct, settlement)
+sle_evictthreatcount <- sle_shp %>%
+  select(geometry, EvictThrea, settlement)
+sle_perceivedrisk <- sle_shp %>%
+  select(geometry, PerceivedR, settlement)
+#Land ownership
+sle_ownerprivate <- sle_shp %>%
+  select(geometry, ownerpriva, settlement)
+sle_ownergovt <- sle_shp %>%
+  select(geometry, ownergovt, settlement)
+sle_ownerreserve <- sle_shp %>%
+  select(geometry, ownerpubli, settlement)
+sle_ownercustomary <- sle_shp %>%
+  select(geometry, ownercusto, settlement)
+
+#ROAD NETWORK, ACCESS TIME AND COST ---------------------------
+#Are roads planned?
+sle_plannedroads <- sle_shp %>%
+  select(geometry, roadsplann, settlement)
+#What type of roads inside the settlement?
+sle_roadtype <- sle_shp %>%
+  select(geometry, roadtype, settlement)
 
 #User Interface
 ui <- fluidPage(
@@ -185,14 +210,18 @@ ui <- fluidPage(
 #AServer
 #Creating color palettes
 pal_publicgood <- colorBin("Reds", domain = as.integer(sle_shp$publicgood), bins = 3)
-pal_physical <- colorBin("Greens", domain = as.integer(sle_shp$physical), bins = 3)
-pal_garbagedump <- colorBin("Purples", domain = as.integer(sle_shp$garbagedum), bins = 3)
-pal_industrial <- colorBin("Blues", domain = as.integer(sle_shp$industrial), bins = 3)
+pal_physical <- colorBin("Reds", domain = as.integer(sle_shp$physical), bins = 3)
+pal_garbagedump <- colorBin("Reds", domain = as.integer(sle_shp$garbagedum), bins = 3)
+pal_industrial <- colorBin("Reds", domain = as.integer(sle_shp$industrial), bins = 3)
 pal_firestruct <- colorBin("Reds", domain = as.integer(sle_shp$firestruct), bins = 3)
-pal_floodstruct <- colorBin("Blues", domain = as.integer(sle_shp$floodstruc), bins = 3)
+pal_floodstruct <- colorBin("Reds", domain = as.integer(sle_shp$floodstruc), bins = 3)
+pal_evictthreatcount <- colorBin(c("green", "yellow", "red"),domain = as.integer(sle_shp$EvictThrea), bins = 3)
+pal_perceivedrisk <- colorFactor(c("green", "yellow", "red"),domain = as.factor(sle_shp$PerceivedR))
+pal_percent <- colorBin(c("red","yellow","green"), domain = c(0,100), bins = 9)
+pal_roadsplanned <- colorFactor(c("red", "green"), domain = as.factor(sle_shp$roadsplann))
 
 server <- function(input, output, session) 
-  # Leaflet Map - Freetown 
+  #Leaflet Map - Freetown 
   output$leafmap <- renderLeaflet({
     leaflet() %>%
       setView(lng = -13.252769 , lat = 8.484531, zoom = 15) %>% 
@@ -205,7 +234,10 @@ server <- function(input, output, session)
       addLayersControl(baseGroups = c("Positron","Color","Satellite","Topography","OSM"),
                        options = layersControlOptions(collapsed = TRUE),
                        overlayGroups = c("Barriers", "Streets", "Buildings", "Amenities", "Hazard: Public Infrastructure", "Hazard: Physical", "Hazard: Garbage Dump", "Hazard: Industrial",
-                                         "Structures destroyed by fire", "Structures destroyed by flood")) %>%
+                                         "Structures destroyed by fire", "Structures destroyed by flood", 
+                                         "% Permanent Structures","% Temporary Structures", "Evict Threat Count", "Perceived Risk",
+                                         "% Private Ownership", "% Municipal Ownership","% Customary Ownership","% Public Goods Ownership",
+                                         "Planned Roads")) %>%
       addPolylines(data = sle_water, color = "red", group = "Barriers") %>%
       addPolylines(data = sle_coast, color = "red", group = "Barriers") %>%
       addPolygons(data = sle_landuse, label = ~landuse, weight = 1, color = "red", group = "Barriers") %>% 
@@ -213,15 +245,28 @@ server <- function(input, output, session)
       addPolygons(data = sle_landamenity, label = ~landuse, weight = 1, color = "blue", group = "Amenities") %>%
       addCircleMarkers(data = sle_amenity, label = ~amenity, radius = 5, weight =1 , fillOpacity = 0.5, stroke = FALSE, group = "Amenities") %>%
       #Services data added with this
-       addCircleMarkers(data = sle_ona, label = ~label, radius = 5, weight =1 , fillOpacity = 0.5, stroke = FALSE, group = "Amenities") %>%
+      addCircleMarkers(data = sle_ona, label = ~label, radius = 5, weight =1 , fillOpacity = 0.5, stroke = FALSE, group = "Amenities") %>%
       #Profile Data begins here
       #Hazards
       addPolygons(data = sle_publicgoods, label = ~settlement, fillColor= ~pal_publicgood(as.integer(publicgood)), fillOpacity = 0.7, weight = 2, group = "Hazard: Public Infrastructure") %>%
       addPolygons(data = sle_physical, label = ~settlement, fillColor= ~pal_physical(as.integer(physical)), fillOpacity = 0.7, weight = 2, group = "Hazard: Physical") %>%
       addPolygons(data = sle_garbagedump, label = ~settlement, fillColor= ~pal_garbagedump(as.integer(garbagedum)), fillOpacity = 0.7, weight = 2, group = "Hazard: Garbage Dump") %>%
       addPolygons(data = sle_industrial, label = ~settlement, fillColor= ~pal_industrial(as.integer(industrial)), fillOpacity = 0.7, weight = 2, group = "Hazard: Industrial") %>%
+      #Disasters: How many structures destroyed in the last year
       addPolygons(data = sle_firestruct, label = ~settlement, fillColor= ~pal_firestruct(as.integer(firestruct)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by fire") %>%
       addPolygons(data = sle_floodstruct, label = ~settlement, fillColor= ~pal_floodstruct(as.integer(floodstruc)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by flood") %>%
+      #Structure Details: More permanent or temporary structures exist?
+      addPolygons(data = sle_permstruct, label = ~settlement, fillColor= ~pal_percent(as.integer(permstruct)), fillOpacity = 0.7, weight = 2, group = "% Permanent Structures") %>%
+      addPolygons(data = sle_tempstruct, label = ~settlement, fillColor= ~pal_percent(as.integer(tempstruct)), fillOpacity = 0.7, weight = 2, group = "% Temporary Structures") %>%
+      #Tenure Security 
+      addPolygons(data = sle_evictthreatcount, label = ~settlement, fillColor= ~pal_evictthreatcount(as.integer(EvictThrea)), fillOpacity = 0.7, weight = 2, group = "Evict Threat Count") %>%
+      addPolygons(data = sle_perceivedrisk, label = ~settlement, fillColor= ~pal_perceivedrisk(as.factor(PerceivedR)), fillOpacity = 0.7, weight = 2, group = "Perceived Risk") %>%
+      #Ownership of land
+      addPolygons(data = sle_ownerprivate, label = ~settlement, fillColor= ~pal_percent(as.integer(ownerpriva)), fillOpacity = 0.7, weight = 2, group = "% Private Ownership") %>%
+      addPolygons(data = sle_ownergovt, label = ~settlement, fillColor= ~pal_percent(as.integer(ownergovt)), fillOpacity = 0.7, weight = 2, group = "% Municipal Ownership") %>%
+      addPolygons(data = sle_ownercustomary, label = ~settlement, fillColor= ~pal_percent(as.integer(ownercusto)), fillOpacity = 0.7, weight = 2, group = "% Customary Ownership") %>%
+      addPolygons(data = sle_ownerreserve, label = ~settlement, fillColor= ~pal_percent(as.integer(ownerpubli)), fillOpacity = 0.7, weight = 2, group = "% Public Goods Ownership") %>%
+      addPolygons(data = sle_plannedroads, label = ~settlement, fillColor= ~pal_roadsplanned(as.factor(roadsplann)), fillOpacity = 0.7, weight = 2, group = "Planned Roads") %>%
       addDrawToolbar(targetGroup = "drawnPoly", rectangleOptions = F, markerOptions = F, circleOptions=F,
                      editOptions = editToolbarOptions(selectedPathOptions = selectedPathOptions()), 
                      circleMarkerOptions = drawCircleMarkerOptions(color = "green"),
@@ -230,7 +275,7 @@ server <- function(input, output, session)
       })
 
 shinyApp(ui, server)
-
+             
 #-----Lagos Map Information ---------------------------
 ng_ona <- read.csv('E:\\Open Reblock\\Datasets\\ng_sdi_services.csv')
 colnames(ng_ona) <- tolower(gsub("[^[:alnum:]| ]", "", colnames(ng_ona )))
@@ -334,7 +379,7 @@ bins <- c(quantile(ng_shp$HI, na.rm = TRUE, 0.00001),
           quantile(ng_shp$HI, na.rm = TRUE, 0.75), 
           quantile(ng_shp$HI, na.rm = TRUE, 1))
 bins <- unique(bins)
-pal <- colorBin("RdOrYl", domain = ng_shp$HI, bins = bins)
+pal <- colorBin("YlOrRd", domain = ng_shp$HI, bins = bins)
 server <- function(input, output, session) 
   # Leaflet Map - Freetown 
   output$leafmap <- renderLeaflet({
@@ -527,4 +572,3 @@ server <- function(input, output, session)
   })
 
 shinyApp(ui, server)
-
