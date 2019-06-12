@@ -16,6 +16,7 @@ library(shiny)
 library(shinydashboard)
 library(rgdal)
 library(mapview)
+library(htmltools)
 
 #-----Mapping services point data  ---------------------------
 sle_ona <- read.csv('E:\\Open Reblock\\Datasets\\sle_sdi_services.csv')
@@ -151,6 +152,10 @@ sle_shop <- opq(bbox = c(xmin_1, ymin_1, xmax_1, ymax_1)) %>%
 #Mapping Settlement Profile Metrics ------------------------------
 sle_shp <- st_read("sierraleaone.shp")
 
+#SETTLEMENT CHARACTERISTICS ----------------------------------
+sle_outline <- sle_shp %>%
+  select(geometry, settlement, areaacres, status, roadtype)
+
 #ENVIRONMENT --------------------------------------------------------
 #Hazards
 sle_publicgoods <- sle_shp %>%
@@ -197,6 +202,51 @@ sle_plannedroads <- sle_shp %>%
 #What type of roads inside the settlement?
 sle_roadtype <- sle_shp %>%
   select(geometry, roadtype, settlement)
+#Time to access infrastructure 
+sle_timewater <- sle_shp %>%
+  select(geometry, timewater, settlement) #water
+sle_timesani <- sle_shp %>%
+  select(geometry, timesanita, settlement) #sanitation
+sle_timegarbage <- sle_shp %>%
+  select(geometry, timegarbag, settlement) #garbage 
+#Time to reach emergency services 
+sle_timeemergency <- sle_shp %>%
+  select(geometry, timeemerge, settlement) #Police, Fire Engine, Ambulance
+#Time to get to transit 
+sle_timetransit <- sle_shp %>%
+  select(geometry, publictran, settlement) #Time to get to the nearest train station/bus/taxi stop
+
+#ACCESS TO SERVICES -------------------------------------------
+sle_accesswater <- sle_shp %>%
+  select(geometry, access_wat, settlement)
+sle_accesssani <- sle_shp %>%
+  select(geometry, improved_s, settlement)
+sle_accesselec <- sle_shp %>%
+  select(geometry, access_ele, settlement)
+
+#ECONOMIC ACTIVITY ----------------------------------------------------
+#Male job categories
+sle_malejobs_con <- sle_shp %>%
+  select(geometry, malejobcon, settlement)
+sle_malejobs_petty <- sle_shp %>%
+  select(geometry, malejobpet, settlement)
+sle_malejobs_fish <- sle_shp %>%
+  select(geometry, malejobfis, settlement)
+sle_malejobs_serv <- sle_shp %>%
+  select(geometry, malejobser, settlement)
+sle_malejobs_do <- sle_shp %>%
+  select(geometry, malejobsdo, settlement)
+
+#Female job categories
+sle_femalejobs_con <- sle_shp %>%
+  select(geometry, femalejobs, settlement)
+sle_femalejobs_petty <- sle_shp %>%
+  select(geometry, femalejobp, settlement)
+sle_femalejobs_fish <- sle_shp %>%
+  select(geometry, femalejobf, settlement)
+sle_femalejobs_do <- sle_shp %>%
+  select(geometry, femalejo_1, settlement)
+
 
 #User Interface
 ui <- fluidPage(
@@ -219,6 +269,12 @@ pal_evictthreatcount <- colorBin(c("green", "yellow", "red"),domain = as.integer
 pal_perceivedrisk <- colorFactor(c("green", "yellow", "red"),domain = as.factor(sle_shp$PerceivedR))
 pal_percent <- colorBin(c("red","yellow","green"), domain = c(0,100), bins = 9)
 pal_roadsplanned <- colorFactor(c("red", "green"), domain = as.factor(sle_shp$roadsplann))
+pal_timewater <- colorBin("Reds", domain = as.integer(sle_shp$timewater), bins = 6)
+pal_timesani <- colorBin("Reds", domain = as.integer(sle_shp$timesanita), bins = 6)
+pal_timegarbage <- colorBin("Reds", domain = as.integer(sle_shp$timegarbag), bins = 6)
+pal_timeemerge <- colorBin("Reds", domain = as.integer(sle_shp$timeemerge), bins = 6)
+pal_timetransit <- colorBin("Reds", domain = as.integer(sle_shp$publictran), bins = 6)
+pal_binary <- colorFactor(c("white","green"), domain = c(0,1))
 
 server <- function(input, output, session) 
   #Leaflet Map - Freetown 
@@ -231,13 +287,18 @@ server <- function(input, output, session)
       addProviderTiles(provider = "Esri.WorldTopoMap", group = "Topography", options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
       addProviderTiles(provider ='Esri.WorldImagery', group = "Satellite", options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
       addProviderTiles(provider ="CartoDB.PositronNoLabels", group = "Positron",options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
-      addLayersControl(baseGroups = c("Positron","Color","Satellite","Topography","OSM"),
+      addLayersControl(baseGroups = c("Positron","Color","Satellite","Topography","OSM","Settlement Outline"),
                        options = layersControlOptions(collapsed = TRUE),
                        overlayGroups = c("Barriers", "Streets", "Buildings", "Amenities", "Hazard: Public Infrastructure", "Hazard: Physical", "Hazard: Garbage Dump", "Hazard: Industrial",
                                          "Structures destroyed by fire", "Structures destroyed by flood", 
                                          "% Permanent Structures","% Temporary Structures", "Evict Threat Count", "Perceived Risk",
                                          "% Private Ownership", "% Municipal Ownership","% Customary Ownership","% Public Goods Ownership",
-                                         "Planned Roads")) %>%
+                                         "Planned Roads", "Access to water (mins)", "Waittime to toilet (mins)","Garbage Collection Interval (days)", 
+                                         "Mins to public transit", "Emergency Response Time (mins)", 
+                                         "%Access to Water", "%Access to Sanitation", "%Access to Electricity", 
+                                         "Male Jobs: Construction", "Male Jobs: Petty Trading", "Male Jobs: Fishing", "Male Jobs: Domestic", "Male Jobs: Services", 
+                                         "Female Jobs: Construction", "Female Jobs: Petty Trading", "Female Jobs: Fishing", "Female Jobs: Domestic")) %>%
+      #addPopups(data = sle_pop, as.double(~lat), as.double(~long), popup = ~htmlEscape(settlement))%>% 
       addPolylines(data = sle_water, color = "red", group = "Barriers") %>%
       addPolylines(data = sle_coast, color = "red", group = "Barriers") %>%
       addPolygons(data = sle_landuse, label = ~landuse, weight = 1, color = "red", group = "Barriers") %>% 
@@ -247,8 +308,9 @@ server <- function(input, output, session)
       #Services data added with this
       addCircleMarkers(data = sle_ona, label = ~label, radius = 5, weight =1 , fillOpacity = 0.5, stroke = FALSE, group = "Amenities") %>%
       #Profile Data begins here
+      addPolygons(data = sle_outline, stroke = TRUE, color = "black", dashArray = "3", label = ~paste0("Name: ",settlement, "<br/>","Area: ",areaacres, "<br/>","Status: ",status, "<br/>",roadtype), fillOpacity = 0, weight = 2, group = "Settlement Outline") %>%
       #Hazards
-      addPolygons(data = sle_publicgoods, label = ~settlement, fillColor= ~pal_publicgood(as.integer(publicgood)), fillOpacity = 0.7, weight = 2, group = "Hazard: Public Infrastructure") %>%
+      addPolygons(data = sle_publicgoods, label = ~paste0(settlement,",",publicgood), fillColor= ~pal_publicgood(as.integer(publicgood)), fillOpacity = 0.7, weight = 2, group = "Hazard: Public Infrastructure") %>%
       addPolygons(data = sle_physical, label = ~settlement, fillColor= ~pal_physical(as.integer(physical)), fillOpacity = 0.7, weight = 2, group = "Hazard: Physical") %>%
       addPolygons(data = sle_garbagedump, label = ~settlement, fillColor= ~pal_garbagedump(as.integer(garbagedum)), fillOpacity = 0.7, weight = 2, group = "Hazard: Garbage Dump") %>%
       addPolygons(data = sle_industrial, label = ~settlement, fillColor= ~pal_industrial(as.integer(industrial)), fillOpacity = 0.7, weight = 2, group = "Hazard: Industrial") %>%
@@ -267,6 +329,27 @@ server <- function(input, output, session)
       addPolygons(data = sle_ownercustomary, label = ~settlement, fillColor= ~pal_percent(as.integer(ownercusto)), fillOpacity = 0.7, weight = 2, group = "% Customary Ownership") %>%
       addPolygons(data = sle_ownerreserve, label = ~settlement, fillColor= ~pal_percent(as.integer(ownerpubli)), fillOpacity = 0.7, weight = 2, group = "% Public Goods Ownership") %>%
       addPolygons(data = sle_plannedroads, label = ~settlement, fillColor= ~pal_roadsplanned(as.factor(roadsplann)), fillOpacity = 0.7, weight = 2, group = "Planned Roads") %>%
+      #Time to access and emergency response
+      addPolygons(data = sle_timewater, label = ~settlement, fillColor= ~pal_timewater(as.integer(timewater)), fillOpacity = 0.7, weight = 2, group = "Access to water (mins)") %>%
+      addPolygons(data = sle_timesani, label = ~settlement, fillColor= ~pal_timesani(as.integer(timesanita)), fillOpacity = 0.7, weight = 2, group = "Waittime to toilet (mins)") %>%
+      addPolygons(data = sle_timegarbage, label = ~settlement, fillColor= ~pal_timegarbage(as.integer(timegarbag)), fillOpacity = 0.7, weight = 2, group = "Garbage Collection Interval (days)") %>%
+      addPolygons(data = sle_timetransit, label = ~settlement, fillColor= ~pal_timetransit(as.integer(publictran)), fillOpacity = 0.7, weight = 2, group = "Mins to public transit") %>%
+      addPolygons(data = sle_timeemergency, label = ~settlement, fillColor= ~pal_timeemerge(as.integer(timeemerge)), fillOpacity = 0.7, weight = 2, group = "Emergency Response Time (mins)") %>%
+      #Access to infrastructure
+      addPolygons(data = sle_accesswater, label = ~settlement, fillColor= ~pal_percent(as.integer(access_wat)), fillOpacity = 0.7, weight = 2, group = "%Access to Water") %>%
+      addPolygons(data = sle_accesssani, label = ~settlement, fillColor= ~pal_percent(as.integer(improved_s)), fillOpacity = 0.7, weight = 2, group = "%Access to Sanitation") %>%
+      addPolygons(data = sle_accesselec, label = ~settlement, fillColor= ~pal_percent(as.integer(access_ele)), fillOpacity = 0.7, weight = 2, group = "%Access to Electricity") %>%
+      #Male Jobs
+      addPolygons(data = sle_malejobs_con, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobcon)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Construction") %>%
+      addPolygons(data = sle_malejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobpet)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Petty Trading") %>%
+      addPolygons(data = sle_malejobs_fish, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobfis)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Fishing") %>%
+      addPolygons(data = sle_malejobs_do, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobsdo)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Domestic") %>%
+      addPolygons(data = sle_malejobs_serv, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobser)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Services") %>%
+      #Female Jobs
+      addPolygons(data = sle_femalejobs_con, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobs)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Construction") %>%
+      addPolygons(data = sle_femalejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobp)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Petty Trading") %>%
+      addPolygons(data = sle_femalejobs_fish, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobf)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Fishing") %>%
+      addPolygons(data = sle_femalejobs_do, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejo_1)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Domestic") %>%
       addDrawToolbar(targetGroup = "drawnPoly", rectangleOptions = F, markerOptions = F, circleOptions=F,
                      editOptions = editToolbarOptions(selectedPathOptions = selectedPathOptions()), 
                      circleMarkerOptions = drawCircleMarkerOptions(color = "green"),
@@ -275,7 +358,7 @@ server <- function(input, output, session)
       })
 
 shinyApp(ui, server)
-             
+
 #-----Lagos Map Information ---------------------------
 ng_ona <- read.csv('E:\\Open Reblock\\Datasets\\ng_sdi_services.csv')
 colnames(ng_ona) <- tolower(gsub("[^[:alnum:]| ]", "", colnames(ng_ona )))
@@ -572,3 +655,4 @@ server <- function(input, output, session)
   })
 
 shinyApp(ui, server)
+
