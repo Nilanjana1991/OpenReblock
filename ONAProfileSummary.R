@@ -73,58 +73,64 @@ dfout$tempstructures[is.na(dfout$tempstructures)]=NA
 ##ENVIRONMENT ---------------------------------------------------------------
 
 #Hazards: How many hazards exist in the settlement? 
-#Public infrastructure (railway tracks/under power lines/canals/roadside/open drains) or
-#Physical (Water body/flood prone area/sloped zone/sinking soil) or
-#Garbage dump or
-#Industrial dumping area: Isolated for toxic waste area 
+#Public infrastructure (railway tracks/under power lines/roadside)
+#Physical (Water body/flood prone area/sinking soil) or
+#Solid Waste (Garbage dump or Industrial dumping area or Mining) 
 dfout$publicgoodhazard <- ifelse(as.logical(df$section_D.D1_Location_Problems.railway_track),1,0)+
   ifelse(as.logical(df$section_D.D1_Location_Problems.under_power_lines),1,0)+
-  ifelse(as.logical(df$section_D.D1_Location_Problems.canal),1,0)+
-  ifelse(as.logical(df$section_D.D1_Location_Problems.road_side),1,0)+
-  ifelse(as.logical(df$section_D.D1_Location_Problems.open_drains),1,0)
+  ifelse(as.logical(df$section_D.D1_Location_Problems.road_side),1,0)
 dfout$physical <-  ifelse(as.logical(df$section_D.D1_Location_Problems.water_body),1,0)+
   ifelse(as.logical(df$section_D.D1_Location_Problems.flood_prone_area),1,0)+
-  ifelse(as.logical(df$section_D.D1_Location_Problems.slope),1,0)+
   ifelse(as.logical(df$section_D.D1_Location_Problems.sinking_soil),1,0)
-dfout$garbagedump <- ifelse(as.logical(df$section_D.D1_Location_Problems.garbage_dump),1,0)
-dfout$industrial <- ifelse(as.logical(df$section_D.D1_Location_Problems.industrial_hazards),1,0)+
-  ifelse(as.logical(df$section_D.D1_Location_Problems.mine_dump),1,0)
+dfout$solidwaste <- ifelse(as.logical(df$section_D.D1_Location_Problems.garbage_dump),1,0) +
+                             ifelse(as.logical(df$section_D.D1_Location_Problems.industrial_hazards),1,0)+
+                             ifelse(as.logical(df$section_D.D1_Location_Problems.mine_dump),1,0)
   
-#Disasters in the last year: Fires, Floods are isolated; Others are clubbed together
+#Disasters in the last year: Fires, Flood frequency reported; Others are not included 
 #Fires
 dfout$firefrequency <- ifelse(df$section_D.D4a_Distaster_Frequency=="more_than_three",3,ifelse(df$section_D.D4a_Distaster_Frequency=="twice",2,ifelse(df$section_D.D4a_Distaster_Frequency=="once",1,0)))
-dfout$firestructures <- ifelse(df$section_D.D4a_Structures_Destroyed=="more_than_10",15,ifelse(df$section_D.D4a_Structures_Destroyed=="6_10",8,ifelse(df$section_D.D4a_Structures_Destroyed=="1_5",3,0)))  
 #Floods
 dfout$floodfrequency <- ifelse(df$section_D.D4b_Distaster_Frequency=="more_than_three",3,ifelse(df$section_D.D4b_Distaster_Frequency=="twice",2,ifelse(df$section_D.D4b_Distaster_Frequency=="once",1,0)))
-dfout$floodstructures <- ifelse(df$section_D.D4b_Structures_Destroyed=="more_than_10",15,ifelse(df$section_D.D4b_Structures_Destroyed=="6_10",8,ifelse(df$section_D.D4b_Structures_Destroyed=="1_5",3,0)))  
-#Structures destroyed by other disasters
-dfout$otherdistasterstructures <- ifelse(df$section_D.D4c_Structures_Destroyed=="more_than_10",15,ifelse(df$section_D.D4c_Structures_Destroyed=="6_10",8,ifelse(df$section_D.D4c_Structures_Destroyed=="1_5",3,0)))+
-  ifelse(df$section_D.D4d_Structures_Destroyed=="more_than_10",15,ifelse(df$section_D.D4d_Structures_Destroyed=="6_10",8,ifelse(df$section_D.D4d_Structures_Destroyed=="1_5",3,0)))+
-  ifelse(df$section_D.D4e_Structures_Destroyed=="more_than_10",15,ifelse(df$section_D.D4e_Structures_Destroyed=="6_10",8,ifelse(df$section_D.D4e_Structures_Destroyed=="1_5",3,0)))
 
 ##ECONOMIC GROWTH-------------------------------------------------------
 
-#MALE JOBS: Construction, Petty trading, Domestic work, Services, Fishing
-dfout$malejobconstruction <- ifelse(as.logical(df$section_K.K1_Jobs_Men.construction),1,0)
-dfout$malejobpettytrading <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.hawking),1,0)+
-  ifelse(as.logical(df$section_K.K1_Jobs_Men.petty_trading),1,0)+
-  ifelse(as.logical(df$section_K.K1_Jobs_Men.food_vendor),1,0)),1,0)
-dfout$malejobsdomesticwork <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.domestic_work),1,0)+
-  ifelse(as.logical(df$section_K.K1_Jobs_Men.garderning),1,0)),1,0)
-dfout$malejobservices <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.securtiy),1,0)+
-                                       ifelse(as.logical(df$section_K.K1_Jobs_Men.restuarant),1,0)),1,0)
-dfout$malejobfishing <- ifelse(as.logical(df$section_K.K1_Jobs_Men.fishing),1,0)
+#MALE JOBS: Construction, Petty trading, Domestic work, Services, Agriculture, Food Vendors
+#Construction: Construction OR Masonry OR Tilers OR Electricians
+dfout$malejobconst <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.construction),1,0)+
+  ifelse(as.logical(df$section_K.K1_Jobs_Men.masonry),1,0)+
+  ifelse(as.logical(df$section_K.K1_Jobs_Men.tilers),1,0)+ 
+  ifelse(as.logical(df$section_K.K1_Jobs_Men.electricians),1,0)),1,0)
+#Petty Trading: Hawking OR Petty Trading
+dfout$malejobpettytrade <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.hawking),1,0)+
+  ifelse(as.logical(df$section_K.K1_Jobs_Men.petty_trading),1,0)),1,0)
+#Food Vendors
+dfout$malejobfoodvendor <- ifelse(as.logical(df$section_K.K1_Jobs_Men.food_vendor),1,0)
+#Services: Security OR Restaurant OR Shopping Centre OR Domestic Work
+dfout$malejobserv <- ifelse((ifelse(as.logical(df$section_K.K1_Jobs_Men.domestic_work),1,0)+
+  ifelse(as.logical(df$section_K.K1_Jobs_Men.restuarant),1,0)+
+           ifelse(as.logical(df$section_K.K1_Jobs_Men.shopping_centre),1,0)+
+          ifelse(as.logical(df$section_K.K1_Jobs_Men.securtiy),1,0)),1,0)
+#Agriculture: Fishing + Other agri based practices
+dfout$malejobagri <- ifelse(as.logical(df$section_K.K1_Jobs_Men.fishing),1,0)
 
-#FEMALE JOBS: Construction, Petty trading, Domestic work, Services, Fishing 
-dfout$femalejobconstruction <- ifelse(as.logical(df$section_K.K2_Jobs_Women.construction,1,0))
-dfout$femalejobpettytrading <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.hawking),1,0)+
-                                       ifelse(as.logical(df$section_K.K2_Jobs_Women.petty_trading),1,0)+
-                                       ifelse(as.logical(df$section_K.K2_Jobs_Women.food_vendor),1,0)),1,0)
-dfout$femalejobsdomesticwork <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.domestic_work),1,0)+
-                                        ifelse(as.logical(df$section_K.K2_Jobs_Women.garderning),1,0)),1,0)
-dfout$femalejobservices <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.securtiy),1,0)+
-                                   ifelse(as.logical(df$section_K.K2_Jobs_Women.restuarant),1,0)),1,0)
-dfout$femalejobfishing <- ifelse(as.logical(df$section_K.K2_Jobs_Women.fishing),1,0)
+#FEMALE JOBS: Construction, Petty trading, Domestic work, Services, Agriculture, Food Vendors 
+#Construction: Construction OR Masonry OR Tilers OR Electricians
+dfout$femalejobconst <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.construction),1,0) +
+                               ifelse(as.logical(df$section_K.K2_Jobs_Women.masonry),1,0) +
+                               ifelse(as.logical(df$section_K.K2_Jobs_Women.tilers),1,0) + 
+                               ifelse(as.logical(df$section_K.K2_Jobs_Women.electricians),1,0)),1,0)
+#Petty Trading: Hawking OR Petty Trading
+dfout$femalejobpettytrade <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.hawking),1,0)+
+                                    ifelse(as.logical(df$section_K.K2_Jobs_Women.petty_trading),1,0)),1,0)
+#Food Vendors
+dfout$femalejobfoodvendor <- ifelse(as.logical(df$section_K.K2_Jobs_Women.food_vendor),1,0)
+#Services: Security OR Restaurant OR Shopping Centre OR Domestic Work
+dfout$femalejobserv <- ifelse((ifelse(as.logical(df$section_K.K2_Jobs_Women.domestic_work),1,0)+
+                              ifelse(as.logical(df$section_K.K2_Jobs_Women.restuarant),1,0)+
+                              ifelse(as.logical(df$section_K.K2_Jobs_Women.shopping_centre),1,0)+
+                              ifelse(as.logical(df$section_K.K2_Jobs_Women.securtiy),1,0)),1,0)
+#Agriculture: Fishing + Other agri based practices
+dfout$femalejobagri <- ifelse(as.logical(df$section_K.K2_Jobs_Women.fishing),1,0)
 
 #BUSINESS ACTIVITY: % of structures used partially or completely for business activity 
 df$section_C.C2_Structures_Residential_Business[df$section_C.C2_Structures_Residential_Business=="n/a"]=NA
@@ -135,11 +141,6 @@ dfout$businessactivity[is.na(dfout$businessactivity)]=NA
 
 #INSTITUTIONS: Informal markets, banks, savings groups and shops
 dfout$informalmarkets <- ifelse(df$section_N.N3_InformalMarkets_inside == "yes",2,ifelse(df$section_N.N3_InformalMarkets=="yes",1,0))
-dfout$banks <- ifelse(df$section_N.N2_Banks_inside =="yes", 2, ifelse(df$section_N.N2_Banks == "yes",1,0))
-dfout$savingsgroups <- as.numeric(df$section_P.P10_Savings_Groups_Count)
-dfout$shops <- as.numeric(df$section_O.O1_GeneralShops_Count) + 
-  as.numeric(df$section_O.O2_FoodShops_Count)+
-  as.numeric(df$section_O.O3_ClothingShops_Count)
 
 #TENURE SECURITY---------------------------------------------------------
 
@@ -173,108 +174,37 @@ dfout$status[df$section_B.B14_Status=="resettled"] <- "Resettled"
 dfout$status[df$section_B.B14_Status=="undeclared_illegal_unprotected"]<- "Illegal"
 dfout$status <- as.factor(dfout$status)
 
-#Renting Usage
-#Allocating number values to renting
-dfout$rentusage[df$section_C.C13_Renting=="no_rent"]<-0
-dfout$rentusage[df$section_C.C13_Renting=="few_rent"]<-15
-dfout$rentusage[df$section_C.C13_Renting=="less_rent"]<-25
-dfout$rentusage[df$section_C.C13_Renting=="half_rent"]<-50
-dfout$rentusage[df$section_C.C13_Renting=="most_rent"]<-75 
+#DOES THE CITY PROVIDE ANY SERVICES IN SETTLEMENTS -------------------------------------------
 
-#ACCESS TO INFRASTRUCTURE -------------------------------------------
+#Water Access
+dfout$servwater <- ifelse(ifelse((df$section_F.F1_Manager=="Municipality"|df$section_F.F1_Manager=="MUNICIPALITY"|df$section_F.F1_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F2_Manager=="Municipality"|df$section_F.F2_Manager=="MUNICIPALITY"|df$section_F.F2_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F3_Manager=="Municipality"|df$section_F.F3_Manager=="MUNICIPALITY"|df$section_F.F3_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F4_Manager=="Municipality"|df$section_F.F4_Manager=="MUNICIPALITY"|df$section_F.F4_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F6_Manager=="Municipality"|df$section_F.F6_Manager=="MUNICIPALITY"|df$section_F.F6_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F7_Manager=="Municipality"|df$section_F.F7_Manager=="MUNICIPALITY"|df$section_F.F7_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F9_Manager=="Municipality"|df$section_F.F9_Manager=="MUNICIPALITY"|df$section_F.F9_Manager=="municipality"),1,0)+
+  ifelse((df$section_F.F1_Supply=="Municipality"|df$section_F.F1_Supply=="MUNICIPALITY"|df$section_F.F1_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F2_Supply=="Municipality"|df$section_F.F2_Supply=="MUNICIPALITY"|df$section_F.F2_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F3_Supply=="Municipality"|df$section_F.F3_Supply=="MUNICIPALITY"|df$section_F.F3_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F3_Supply=="Municipality"|df$section_F.F3_Supply=="MUNICIPALITY"|df$section_F.F3_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F4_Supply=="Municipality"|df$section_F.F4_Supply=="MUNICIPALITY"|df$section_F.F4_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F5_Supply=="Municipality"|df$section_F.F5_Supply=="MUNICIPALITY"|df$section_F.F5_Supply=="municipality"),1,0)+
+  ifelse((df$section_F.F9_Supply=="Municipality"|df$section_F.F9_Supply=="MUNICIPALITY"|df$section_F.F9_Supply=="municipality"),1,0),1,0)
 
-#Access to Improved Water
-#100*(Number of households with sustainable access to piped water/total number of households)
+#Sanitation
+dfout$servsani <- ifelse(ifelse((df$section_G.G7_Manager=="Municipality"|df$section_G.G7_Manager=="MUNICIPALITY"|df$section_G.G7_Manager=="municipality"),1,0)+
+                            ifelse((df$section_G.G8_Manager=="Municipality"|df$section_G.G8_Manager=="MUNICIPALITY"|df$section_G.G8_Manager=="municipality"),1,0)+
+                            ifelse((df$section_G.G9_Manager=="Municipality"|df$section_G.G9_Manager=="MUNICIPALITY"|df$section_G.G9_Manager=="municipality"),1,0)+
+                            ifelse((df$section_G.G10_Manager=="Municipality"|df$section_G.G10_Manager=="MUNICIPALITY"|df$section_G.G10_Manager=="municipality"),1,0),1,0)
 
-#Data cleaning - Access to water
-df$section_F.F1_Working <- as.numeric(df$section_F.F1_Working)
-df$section_F.F2_Working <- as.numeric(df$section_F.F2_Working)
-df$section_F.F3_Working <- as.numeric(df$section_F.F3_Working)
-df$section_F.F4_Working <- as.numeric(df$section_F.F4_Working)
-df$section_F.F6_Count <- as.numeric(df$section_F.F6_Count)
-df$section_C.C9_Households <- as.numeric(df$section_C.C9_Households)
+#Garbage Disposal 
+dfout$servgarbage <- ifelse((df$section_H.H3_Garbage_Collector=="Municipality"|df$section_H.H3_Garbage_Collector=="MUNICIPALITY"|df$section_H.H3_Garbage_Collector=="municipality"),1,0)
+  
+#Electricity
+dfout$servelectric <- ifelse(df$section_J.J1_Electricity_Available=="yes",1,0)
 
-df$section_F.F1_Working[is.na(df$section_F.F1_Working)]<-0
-df$section_F.F2_Working[is.na(df$section_F.F2_Working)]<-0
-df$section_F.F3_Working[is.na(df$section_F.F3_Working)]<-0
-df$section_F.F4_Working[is.na(df$section_F.F4_Working)]<-0
-df$section_F.F4_Working[df$section_F.F4_Quality=="not_safe"]<-0
-df$section_F.F6_Count[is.na(df$section_F.F6_Count)]<-0
-df$section_F.F6_Count[df$section_F.F6_Quality=="not_safe"]<-0
 
-#Assumption: Survey measure of number of individual taps that are working is an approximate measure of access to piped water to a household
-#Deviation: Added shared taps in working order/no. of households + Added working number of communal taps/no. of households+
-#No. of boreholes with safe water/no. of households + No. of safe springs/no. of households
-#Try an alternative calculation of all sources together 
-dfout$access_water <- df$section_F.F1_Working + 
-  df$section_F.F2_Working/df$section_C.C9_Households + 
-  df$section_F.F3_Working/df$section_C.C9_Households + 
-  df$section_F.F4_Working/df$section_C.C9_Households +
-  df$section_F.F6_Count/df$section_C.C9_Households 
-dfout$access_water <- (100*dfout$access_water)/df$section_C.C9_Households #Logging unstandardized value for use in regressions
-dfout$access_water[dfout$access_water>100] <- 100
-
-#Access To Sanitation 
-#100*(Number of households with improved sanitation/Total no. of households)
-#Improved sanitation incl. flush, pour flush, septic tank
-#Modification: Individual toilets count as one, shared toilet seats or public toilet seats is discounted by the total no. of households
-
-#Data cleaning - Access to sanitation
-#Replace blanks in the database with zeros
-df$section_G.G7_Seats <- as.numeric(df$section_G.G7_Seats)
-df$section_G.G8_Seats <- as.numeric(df$section_G.G8_Seats)
-df$section_G.G9_Seats <- as.numeric(df$section_G.G9_Seats)
-
-df$section_G.G7_Seats[is.na(df$section_G.G7_Seats)]<-0
-df$section_G.G8_Seats[is.na(df$section_G.G8_Seats)]<-0
-df$section_G.G9_Seats[is.na(df$section_G.G9_Seats)]<-0
-
-#Logical Coefficients (Improved = 1, Unimproved = 0)
-#When Toilet types gets inputted as characters
-individual <- as.integer(df$section_G.G7_Toilet_Type.chemical=="TRUE"|df$section_G.G7_Toilet_Type.chemical=="True"|
-                           df$section_G.G7_Toilet_Type.ecosan=="TRUE"|df$section_G.G7_Toilet_Type.ecosan=="True"|
-                           df$section_G.G7_Toilet_Type.pour_flush=="TRUE"|df$section_G.G7_Toilet_Type.pour_flush=="True"|
-                           df$section_G.G7_Toilet_Type.flush=="TRUE"|df$section_G.G7_Toilet_Type.flush=="True")
-
-shared <- as.integer(df$section_G.G8_Toilet_Type.chemical=="TRUE"|df$section_G.G8_Toilet_Type.chemical=="True"|
-                       df$section_G.G8_Toilet_Type.ecosan=="TRUE"|df$section_G.G8_Toilet_Type.ecosan=="True"|
-                       df$section_G.G8_Toilet_Type.pour_flush=="TRUE"|df$section_G.G8_Toilet_Type.pour_flush=="True"|
-                       df$section_G.G8_Toilet_Type.flush=="TRUE"|df$section_G.G8_Toilet_Type.flush=="True")
-
-communal <- as.integer(df$section_G.G9_Toilet_Type.chemical=="TRUE"|df$section_G.G9_Toilet_Type.chemical=="True"|
-                         df$section_G.G9_Toilet_Type.ecosan=="TRUE"|df$section_G.G9_Toilet_Type.ecosan=="True"|
-                         df$section_G.G9_Toilet_Type.pour_flush=="TRUE"|df$section_G.G9_Toilet_Type.pour_flush=="True"|
-                         df$section_G.G9_Toilet_Type.flush=="TRUE"|df$section_G.G9_Toilet_Type.flush=="True")
-
-#When toilet types get inputted as logical values
-#individual <- as.integer(df$section_G.G7_Toilet_Type.chemical|df$section_G.G7_Toilet_Type.ecosan|df$section_G.G7_Toilet_Type.pour_flush|df$section_G.G7_Toilet_Type.flush)
-#shared <- as.integer(df$section_G.G8_Toilet_Type.chemical|df$section_G.G8_Toilet_Type.ecosan|df$section_G.G8_Toilet_Type.pour_flush|df$section_G.G8_Toilet_Type.flush)
-#communal <- as.integer(df$section_G.G9_Toilet_Type.chemical|df$section_G.G9_Toilet_Type.ecosan|df$section_G.G9_Toilet_Type.pour_flush|df$section_G.G9_Toilet_Type.flush)
-
-individual[is.na(individual)]<-0
-shared[is.na(shared)]<-0
-communal[is.na(communal)]<-0
-
-#Counting no. of households with minimum access to improved sanitation 
-dfout$improved_sanitation <- df$section_G.G7_Seats*individual + 
-  shared*(df$section_G.G8_Seats/df$section_C.C9_Households) + 
-  communal*(df$section_G.G9_Seats/df$section_C.C9_Households)
-dfout$improved_sanitation <- 100*dfout$improved_sanitation/df$section_C.C9_Households
-dfout$improved_sanitation[dfout$improved_sanitation>100] <- 100
-
-#Access to Electricity 
-#100*(Number of households with access to the city grid/Total no. of households)
-#Convert NA's into zeros
-df$section_J.J2_Electricity_Households <- as.numeric(df$section_J.J2_Electricity_Households)
-df$section_J.J2_Electricity_Households[is.na(df$section_J.J2_Electricity_Households)]<-0
-
-#Evaluate percentage of households with electricity. Allocate NA when partial data is available or incorrect data
-dfout$access_electricity <- case_when (
-  (df$section_C.C9_Households < df$section_J.J2_Electricity_Households) ~ NA_real_, 
-  (df$section_C.C9_Households==0) ~ NA_real_,
-  TRUE ~ 100*df$section_J.J2_Electricity_Households/(df$section_C.C9_Households)
-)  
-dfout$access_electricity[dfout$access_electricity>100] <- 100
 
 #PRIORITIES ---------------------------------------------------------
 
@@ -355,68 +285,6 @@ dfout$timeambulance <- ifelse(df$section_I.I7_Ambulance_ResponseTime=="more_than
                                                    ifelse(df$section_I.I7_Ambulance_ResponseTime=="10_minutes", 10,
                                                           ifelse(df$section_I.I7_Ambulance_ResponseTime=="5_minutes", 5,NA))))))
 
-dfout$timepolice <- ifelse(df$section_N.N8_PoliceStations_min=="more_than_1_hour", 75,
-                              ifelse(df$section_N.N8_PoliceStations_min=="30_minutes_to_1_hour", 45, 
-                                     ifelse(df$section_N.N8_PoliceStations_min=="30_minutes", 30, 
-                                            ifelse(df$section_N.N8_PoliceStations_min=="15_minutes", 15,
-                                                   ifelse(df$section_N.N8_PoliceStations_min=="10_minutes", 10,
-                                                          ifelse(df$section_N.N8_PoliceStations_min=="5_minutes", 5,NA))))))
-
-#Minutes wait for water
-dfout$timewater <- ifelse(df$section_F.F12_Water_CollectionTime=="more_than_1_hour", 75,
-                         ifelse(df$section_F.F12_Water_CollectionTime=="30_minutes_to_1_hour", 45, 
-                                ifelse(df$section_F.F12_Water_CollectionTime=="30_minutes", 30, 
-                                       ifelse(df$section_F.F12_Water_CollectionTime=="15_minutes", 15,
-                                              ifelse(df$section_F.F12_Water_CollectionTime=="10_minutes", 10,
-                                                     ifelse(df$section_F.F12_Water_CollectionTime=="5_minutes", 5,NA))))))
-#Minute wait for toilet use
-dfout$timesanitation <- ifelse(df$section_G.G11_Toilet_AverageWait=="more_than_1_hour", 75,
-                          ifelse(df$section_G.G11_Toilet_AverageWait=="30_minutes_to_1_hour", 45, 
-                                 ifelse(df$section_G.G11_Toilet_AverageWait=="30_minutes", 30, 
-                                        ifelse(df$section_G.G11_Toilet_AverageWait=="15_minutes", 15,
-                                               ifelse(df$section_G.G11_Toilet_AverageWait=="10_minutes", 10,
-                                                      ifelse(df$section_G.G11_Toilet_AverageWait=="5_minutes", 5,NA))))))
-#Day interval between garbage collection/disposal
-dfout$timegarbage <- 7/as.numeric(df$section_H.H6_Garbage_WeeklyCollections)
-
-#Average response time metrics
-dfout$timeemergency <- (dfout$timefireengine + dfout$timeambulance + dfout$timepolice)/3
-dfout$publictransit <- 0.5*(as.numeric(df$section_L.L2_WalLTime_Railway)+as.numeric(df$section_L.L3_WalLTime_Bus))
-dfout$washaccess <- 0.5*(dfout$timewater + dfout$timesanitation)
-
-#AVERAGE COST ---------------------------------------------------------------
-
-#Cost of transit per day to go to town
-#Clean data
-
-df$section_L.L1_Cost_bus <- as.numeric(df$section_L.L1_Cost_bus)
-df$section_L.L1_Cost_motorcycles <- as.numeric(df$section_L.L1_Cost_motorcycles)
-df$section_L.L1_Cost_private_automobile <- as.numeric(df$section_L.L1_Cost_private_automobile)
-df$section_L.L1_Cost_taxi <- as.numeric(df$section_L.L1_Cost_taxi)
-df$section_L.L1_Cost_train <- as.numeric(df$section_L.L1_Cost_train)
-df$section_L.L1_Cost_other <- as.numeric(df$section_L.L1_Cost_other)
-
-#Average public and private transit costs per settlement
-transit <- c("section_L.L1_Cost_bus", "section_L.L1_Cost_bus", "section_L.L1_Cost_taxi", "section_L.L1_Cost_train", "section_L.L1_Cost_other")
-private <- c("section_L.L1_Cost_motorcycles", "section_L.L1_Cost_private_automobile")
-dfout$costpublictransit <- rowMeans(df[names(df) %in% transit], na.rm = TRUE)
-dfout$costprivatetransit <- rowMeans(df[names(df) %in% private], na.rm = TRUE)
-
-#Monthly cost of access to infrastructure 
-#Clean data
-dfout$costwater <- as.numeric(df$section_F.F11_Water_MonthlyCost)
-dfout$costsanitation <- as.numeric(df$section_G.G3_Toilets_Pay)
-dfout$costgarbage <- as.numeric(df$section_H.H5_Garbage_Cost)
-dfout$costelectricity <- as.numeric(df$section_J.J6_Electricity_MonthlyCost)
-
-#Filtering outliers
-dfout$costwater[dfout$costwater>70000]<- NA
-dfout$costsanitation[dfout$costsanitation>70000]<- NA
-dfout$costgarbage[dfout$costgarbage>70000]<- NA
-dfout$costelectricity[dfout$costelectricity>70000] <- NA
-
-#Average cost of infrastructure
-dfout$avcostinfra <- rowMeans(dfout[grepl("cost", names(dfout))], na.rm=TRUE)
 
 #PLANNING INPUTS -------------------------------------------------
 
@@ -430,9 +298,6 @@ dfout$roadsplanned = as.factor(df$section_L.L6_Roads_Planned)
 dfout$roadsplanned[dfout$roadsplanned=="n/a"]=NA
 droplevels(dfout$roadsplanned, "n/a")
 
-#Connectivity
-dfout$connectwaterline <- ifelse(df$section_F.F15_Main_Water_Line=="yes",1,ifelse(df$section_F.F15_Main_Water_Line=="no",0,NA))
-dfout$connectsewerline <- ifelse(df$section_G.G2_Sewer_Connected=="yes",1, ifelse(df$section_G.G2_Sewer_Connected=="no",0,NA))
 
 #CREATE OUTPUT FILE
 country <- "sierraleaone"  
