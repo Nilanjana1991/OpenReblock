@@ -150,7 +150,7 @@ sle_shop <- opq(bbox = c(xmin_1, ymin_1, xmax_1, ymax_1)) %>%
   pluck("osm_points")
 
 #Mapping Settlement Profile Metrics ------------------------------
-sle_shp <- st_read("sierraleaone.shp")
+sle_shp <- st_read("sleprofile.shp")
 
 #SETTLEMENT CHARACTERISTICS ----------------------------------
 sle_outline <- sle_shp %>%
@@ -164,17 +164,14 @@ sle_publicgoods <- sle_publicgoods[sle_publicgoods %>% st_is_valid()== TRUE, ]
 sle_physical<- sle_shp %>%
   select(geometry, physical, settlement)
 sle_physical <- sle_physical[sle_physical %>% st_is_valid()== TRUE, ]
-sle_garbagedump <- sle_shp %>%
-  select(geometry, garbagedum, settlement)
-sle_garbagedump <- sle_garbagedump[sle_garbagedump %>% st_is_valid()== TRUE, ]
-sle_industrial <- sle_shp %>%
-  select(geometry, industrial, settlement)
-sle_industrial <- sle_industrial[sle_industrial %>% st_is_valid()== TRUE, ]
+sle_solidwaste<- sle_shp %>%
+  select(geometry, solidwaste, settlement)
+sle_solidwaste <- sle_solidwaste[sle_solidwaste %>% st_is_valid()== TRUE, ]
 #Disasters
-sle_firestruct <- sle_shp %>%
-  select(geometry, firestruct, settlement)
-sle_floodstruct <- sle_shp %>%
-  select(geometry, floodstruc, settlement)
+sle_firefreq <- sle_shp %>%
+  select(geometry, firefreque, settlement)
+sle_floodfreq <- sle_shp %>%
+  select(geometry, floodfrequ, settlement)
 
 #STRUCTURE DETAILS AND TENURE SECURITY ----------------------------------
 sle_permstruct <- sle_shp %>%
@@ -202,27 +199,22 @@ sle_plannedroads <- sle_shp %>%
 #What type of roads inside the settlement?
 sle_roadtype <- sle_shp %>%
   select(geometry, roadtype, settlement)
-#Time to access infrastructure 
-sle_timewater <- sle_shp %>%
-  select(geometry, timewater, settlement) #water
-sle_timesani <- sle_shp %>%
-  select(geometry, timesanita, settlement) #sanitation
-sle_timegarbage <- sle_shp %>%
-  select(geometry, timegarbag, settlement) #garbage 
+ 
 #Time to reach emergency services 
-sle_timeemergency <- sle_shp %>%
-  select(geometry, timeemerge, settlement) #Police, Fire Engine, Ambulance
-#Time to get to transit 
-sle_timetransit <- sle_shp %>%
-  select(geometry, publictran, settlement) #Time to get to the nearest train station/bus/taxi stop
+sle_fireengine <- sle_shp %>%
+  select(geometry, timefireen, settlement) #Time for fire engine to enter
+sle_ambulance <- sle_shp %>%
+  select(geometry, timeambula, settlement) #Time for ambulance to enter
 
-#ACCESS TO SERVICES -------------------------------------------
-sle_accesswater <- sle_shp %>%
-  select(geometry, access_wat, settlement)
-sle_accesssani <- sle_shp %>%
-  select(geometry, improved_s, settlement)
-sle_accesselec <- sle_shp %>%
-  select(geometry, access_ele, settlement)
+#DOES THE CITY PROVIDE ANY SERVICES? -------------------------------------------
+sle_servwater <- sle_shp %>%
+  select(geometry, servwater, settlement)
+sle_servsani <- sle_shp %>%
+  select(geometry, servsani, settlement)
+sle_servgarbage <- sle_shp %>%
+  select(geometry, servgarbag, settlement)
+sle_servelec <- sle_shp %>%
+  select(geometry, servelectr, settlement)
 
 #ECONOMIC ACTIVITY ----------------------------------------------------
 #Male job categories
@@ -230,25 +222,39 @@ sle_malejobs_con <- sle_shp %>%
   select(geometry, malejobcon, settlement)
 sle_malejobs_petty <- sle_shp %>%
   select(geometry, malejobpet, settlement)
-sle_malejobs_fish <- sle_shp %>%
-  select(geometry, malejobfis, settlement)
+sle_malejobs_agri <- sle_shp %>%
+  select(geometry, malejobagr, settlement)
 sle_malejobs_serv <- sle_shp %>%
   select(geometry, malejobser, settlement)
-sle_malejobs_do <- sle_shp %>%
-  select(geometry, malejobsdo, settlement)
+sle_malejobs_food <- sle_shp %>%
+  select(geometry, malejobfoo, settlement)
 
 #Female job categories
 sle_femalejobs_con <- sle_shp %>%
-  select(geometry, femalejobs, settlement)
+  select(geometry, femalejobc, settlement)
 sle_femalejobs_petty <- sle_shp %>%
   select(geometry, femalejobp, settlement)
-sle_femalejobs_fish <- sle_shp %>%
+sle_femalejobs_agri <- sle_shp %>%
+  select(geometry, femalejoba, settlement)
+sle_femalejobs_serv <- sle_shp %>%
+  select(geometry, femalejobs, settlement)
+sle_femalejobs_food <- sle_shp %>%
   select(geometry, femalejobf, settlement)
-sle_femalejobs_do <- sle_shp %>%
-  select(geometry, femalejo_1, settlement)
 
 
-#User Interface
+#PRIORITIES ---------------------------------------------------------
+sle_waterdrainage <- sle_shp %>%
+  select(geometry, water_drai, settlement) 
+sle_sanitation <- sle_shp %>%
+  select(geometry, sanitation, settlement)
+sle_tenuresecurity <- sle_shp %>%
+  select(geometry, tenure_sec, settlement)
+sle_electric <- sle_shp %>%
+  select(geometry, electricit, settlement)
+sle_housing <- sle_shp %>%
+  select(geometry, housing, settlement)
+
+#User Interface:Freetown ---------------------------------------------------
 ui <- fluidPage(
   leafletOutput("leafmap", height = "90vh"),
   br(),
@@ -261,19 +267,15 @@ ui <- fluidPage(
 #Creating color palettes
 pal_publicgood <- colorBin("Reds", domain = as.integer(sle_shp$publicgood), bins = 3)
 pal_physical <- colorBin("Reds", domain = as.integer(sle_shp$physical), bins = 3)
-pal_garbagedump <- colorBin("Reds", domain = as.integer(sle_shp$garbagedum), bins = 3)
-pal_industrial <- colorBin("Reds", domain = as.integer(sle_shp$industrial), bins = 3)
-pal_firestruct <- colorBin("Reds", domain = as.integer(sle_shp$firestruct), bins = 3)
-pal_floodstruct <- colorBin("Reds", domain = as.integer(sle_shp$floodstruc), bins = 3)
+pal_solidwaste <- colorBin("Reds", domain = as.integer(sle_shp$solidwaste), bins = 3)
+pal_firefreq <- colorBin("Reds", domain = as.integer(sle_shp$firefreque), bins = 3)
+pal_floodfreq <- colorBin("Reds", domain = as.integer(sle_shp$floodfrequ), bins = 3)
 pal_evictthreatcount <- colorBin(c("green", "yellow", "red"),domain = as.integer(sle_shp$EvictThrea), bins = 3)
 pal_perceivedrisk <- colorFactor(c("green", "yellow", "red"),domain = as.factor(sle_shp$PerceivedR))
 pal_percent <- colorBin(c("red","yellow","green"), domain = c(0,100), bins = 9)
 pal_roadsplanned <- colorFactor(c("red", "green"), domain = as.factor(sle_shp$roadsplann))
-pal_timewater <- colorBin("Reds", domain = as.integer(sle_shp$timewater), bins = 6)
-pal_timesani <- colorBin("Reds", domain = as.integer(sle_shp$timesanita), bins = 6)
-pal_timegarbage <- colorBin("Reds", domain = as.integer(sle_shp$timegarbag), bins = 6)
-pal_timeemerge <- colorBin("Reds", domain = as.integer(sle_shp$timeemerge), bins = 6)
-pal_timetransit <- colorBin("Reds", domain = as.integer(sle_shp$publictran), bins = 6)
+pal_timefire <- colorBin("Reds", domain = as.integer(sle_shp$timefireen), bins = 6)
+pal_timeambu <- colorBin("Reds", domain = as.integer(sle_shp$timeambula), bins = 6)
 pal_binary <- colorFactor(c("white","green"), domain = c(0,1))
 
 server <- function(input, output, session) 
@@ -287,17 +289,18 @@ server <- function(input, output, session)
       addProviderTiles(provider = "Esri.WorldTopoMap", group = "Topography", options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
       addProviderTiles(provider ='Esri.WorldImagery', group = "Satellite", options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
       addProviderTiles(provider ="CartoDB.PositronNoLabels", group = "Positron",options = providerTileOptions(minZoom = 15, maxZoom = 18)) %>%
-      addLayersControl(baseGroups = c("Positron","Color","Satellite","Topography","OSM","Settlement Outline"),
+      addLayersControl(baseGroups = c("Positron","Color","Satellite","Topography","OSM"),
                        options = layersControlOptions(collapsed = TRUE),
-                       overlayGroups = c("Barriers", "Streets", "Buildings", "Amenities", "Hazard: Public Infrastructure", "Hazard: Physical", "Hazard: Garbage Dump", "Hazard: Industrial",
-                                         "Structures destroyed by fire", "Structures destroyed by flood", 
+                       overlayGroups = c("Barriers", "Streets", "Buildings", "Amenities", "Settlement Outline",
+                                         "Hazard: Public Infrastructure", "Hazard: Physical", "Hazard: Solid Waste",
+                                         "Fire Frequency", "Flood Frequency", 
                                          "% Permanent Structures","% Temporary Structures", "Evict Threat Count", "Perceived Risk",
                                          "% Private Ownership", "% Municipal Ownership","% Customary Ownership","% Public Goods Ownership",
-                                         "Planned Roads", "Access to water (mins)", "Waittime to toilet (mins)","Garbage Collection Interval (days)", 
-                                         "Mins to public transit", "Emergency Response Time (mins)", 
-                                         "%Access to Water", "%Access to Sanitation", "%Access to Electricity", 
-                                         "Male Jobs: Construction", "Male Jobs: Petty Trading", "Male Jobs: Fishing", "Male Jobs: Domestic", "Male Jobs: Services", 
-                                         "Female Jobs: Construction", "Female Jobs: Petty Trading", "Female Jobs: Fishing", "Female Jobs: Domestic")) %>%
+                                         "Planned Roads", "Fire Engine Response Time (mins)","Ambulance Response Time (mins)", 
+                                         "City Service: Water", "City Service: Sanitation", "City Service: Electricity","City Service: Garbage",  
+                                         "Male Jobs: Construction", "Male Jobs: Petty Trading", "Male Jobs: Agriculture", "Male Jobs: Services", "Male Jobs: Food", 
+                                         "Female Jobs: Construction", "Female Jobs: Petty Trading", "Female Jobs: Agriculture", "Female Jobs: Services","Female Jobs: Food", 
+                                          "Priority: Water",  "Priority: Sanitation","Priority: Housing", "Priority: Electricity", "Priority: Tenure security")) %>%
       #addPopups(data = sle_pop, as.double(~lat), as.double(~long), popup = ~htmlEscape(settlement))%>% 
       addPolylines(data = sle_water, color = "red", group = "Barriers") %>%
       addPolylines(data = sle_coast, color = "red", group = "Barriers") %>%
@@ -308,15 +311,16 @@ server <- function(input, output, session)
       #Services data added with this
       addCircleMarkers(data = sle_ona, label = ~label, radius = 5, weight =1 , fillOpacity = 0.5, stroke = FALSE, group = "Amenities") %>%
       #Profile Data begins here
-      addPolygons(data = sle_outline, stroke = TRUE, color = "black", dashArray = "3", label = ~paste0("Name: ",settlement, "<br/>","Area: ",areaacres, "<br/>","Status: ",status, "<br/>",roadtype), fillOpacity = 0, weight = 2, group = "Settlement Outline") %>%
+      addPolygons(data = sle_outline, stroke = TRUE, color = "black", dashArray = "3", 
+                  label = ~paste0('Name:',settlement, '\n Area: ',areaacres, 'acres \n Status: ',status, '\n',roadtype), 
+                  fillOpacity = 0, weight = 2, group = "Settlement Outline") %>%
       #Hazards
-      addPolygons(data = sle_publicgoods, label = ~paste0(settlement,",",publicgood), fillColor= ~pal_publicgood(as.integer(publicgood)), fillOpacity = 0.7, weight = 2, group = "Hazard: Public Infrastructure") %>%
-      addPolygons(data = sle_physical, label = ~settlement, fillColor= ~pal_physical(as.integer(physical)), fillOpacity = 0.7, weight = 2, group = "Hazard: Physical") %>%
-      addPolygons(data = sle_garbagedump, label = ~settlement, fillColor= ~pal_garbagedump(as.integer(garbagedum)), fillOpacity = 0.7, weight = 2, group = "Hazard: Garbage Dump") %>%
-      addPolygons(data = sle_industrial, label = ~settlement, fillColor= ~pal_industrial(as.integer(industrial)), fillOpacity = 0.7, weight = 2, group = "Hazard: Industrial") %>%
+      addPolygons(data = sle_publicgoods, label = ~paste0(settlement,", Proximity to publi",publicgood), fillColor= ~pal_publicgood(as.integer(publicgood)), fillOpacity = 0.7, weight = 2, group = "Hazard: Public Infrastructure") %>%
+      addPolygons(data = sle_physical, fillColor= ~pal_physical(as.integer(physical)), fillOpacity = 0.7, weight = 2, group = "Hazard: Physical") %>%
+      addPolygons(data = sle_solidwaste, label = ~settlement, fillColor= ~pal_solidwaste(as.integer(solidwaste)), fillOpacity = 0.7, weight = 2, group = "Hazard: Garbage Dump") %>%
       #Disasters: How many structures destroyed in the last year
-      addPolygons(data = sle_firestruct, label = ~settlement, fillColor= ~pal_firestruct(as.integer(firestruct)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by fire") %>%
-      addPolygons(data = sle_floodstruct, label = ~settlement, fillColor= ~pal_floodstruct(as.integer(floodstruc)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by flood") %>%
+      addPolygons(data = sle_firefreq, label = ~settlement, fillColor= ~pal_firefreq(as.integer(firefreque)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by fire") %>%
+      addPolygons(data = sle_floodfreq, label = ~settlement, fillColor= ~pal_floodfreq(as.integer(floodfrequ)), fillOpacity = 0.7, weight = 2, group = "Structures destroyed by flood") %>%
       #Structure Details: More permanent or temporary structures exist?
       addPolygons(data = sle_permstruct, label = ~settlement, fillColor= ~pal_percent(as.integer(permstruct)), fillOpacity = 0.7, weight = 2, group = "% Permanent Structures") %>%
       addPolygons(data = sle_tempstruct, label = ~settlement, fillColor= ~pal_percent(as.integer(tempstruct)), fillOpacity = 0.7, weight = 2, group = "% Temporary Structures") %>%
@@ -328,28 +332,34 @@ server <- function(input, output, session)
       addPolygons(data = sle_ownergovt, label = ~settlement, fillColor= ~pal_percent(as.integer(ownergovt)), fillOpacity = 0.7, weight = 2, group = "% Municipal Ownership") %>%
       addPolygons(data = sle_ownercustomary, label = ~settlement, fillColor= ~pal_percent(as.integer(ownercusto)), fillOpacity = 0.7, weight = 2, group = "% Customary Ownership") %>%
       addPolygons(data = sle_ownerreserve, label = ~settlement, fillColor= ~pal_percent(as.integer(ownerpubli)), fillOpacity = 0.7, weight = 2, group = "% Public Goods Ownership") %>%
+      #Planned Roads
       addPolygons(data = sle_plannedroads, label = ~settlement, fillColor= ~pal_roadsplanned(as.factor(roadsplann)), fillOpacity = 0.7, weight = 2, group = "Planned Roads") %>%
       #Time to access and emergency response
-      addPolygons(data = sle_timewater, label = ~settlement, fillColor= ~pal_timewater(as.integer(timewater)), fillOpacity = 0.7, weight = 2, group = "Access to water (mins)") %>%
-      addPolygons(data = sle_timesani, label = ~settlement, fillColor= ~pal_timesani(as.integer(timesanita)), fillOpacity = 0.7, weight = 2, group = "Waittime to toilet (mins)") %>%
-      addPolygons(data = sle_timegarbage, label = ~settlement, fillColor= ~pal_timegarbage(as.integer(timegarbag)), fillOpacity = 0.7, weight = 2, group = "Garbage Collection Interval (days)") %>%
-      addPolygons(data = sle_timetransit, label = ~settlement, fillColor= ~pal_timetransit(as.integer(publictran)), fillOpacity = 0.7, weight = 2, group = "Mins to public transit") %>%
-      addPolygons(data = sle_timeemergency, label = ~settlement, fillColor= ~pal_timeemerge(as.integer(timeemerge)), fillOpacity = 0.7, weight = 2, group = "Emergency Response Time (mins)") %>%
+      addPolygons(data = sle_fireengine, label = ~settlement, fillColor= ~pal_timefire(as.integer(timefireen)), fillOpacity = 0.7, weight = 2, group = "Fire Engine Response Time (mins)") %>%
+      addPolygons(data = sle_ambulance, label = ~settlement, fillColor= ~pal_timeambu(as.integer(timeambula)), fillOpacity = 0.7, weight = 2, group = "Ambulance Response Time (mins)") %>%
       #Access to infrastructure
-      addPolygons(data = sle_accesswater, label = ~settlement, fillColor= ~pal_percent(as.integer(access_wat)), fillOpacity = 0.7, weight = 2, group = "%Access to Water") %>%
-      addPolygons(data = sle_accesssani, label = ~settlement, fillColor= ~pal_percent(as.integer(improved_s)), fillOpacity = 0.7, weight = 2, group = "%Access to Sanitation") %>%
-      addPolygons(data = sle_accesselec, label = ~settlement, fillColor= ~pal_percent(as.integer(access_ele)), fillOpacity = 0.7, weight = 2, group = "%Access to Electricity") %>%
+      addPolygons(data = sle_servwater, label = ~settlement, fillColor= ~pal_binary(as.integer(servwater)), fillOpacity = 0.7, weight = 2, group = "City Service: Water") %>%
+      addPolygons(data = sle_servsani, label = ~settlement, fillColor= ~pal_binary(as.integer(servsani)), fillOpacity = 0.7, weight = 2, group = "City Service: Sanitation") %>%
+      addPolygons(data = sle_servelec, label = ~settlement, fillColor= ~pal_binary(as.integer(servelectr)), fillOpacity = 0.7, weight = 2, group = "City Service: Electricity") %>%
+      addPolygons(data = sle_servgarbage, label = ~settlement, fillColor= ~pal_binary(as.integer(servgarbag)), fillOpacity = 0.7, weight = 2, group = "City Service: Garbage") %>%
       #Male Jobs
-      addPolygons(data = sle_malejobs_con, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobcon)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Construction") %>%
-      addPolygons(data = sle_malejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobpet)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Petty Trading") %>%
-      addPolygons(data = sle_malejobs_fish, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobfis)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Fishing") %>%
-      addPolygons(data = sle_malejobs_do, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobsdo)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Domestic") %>%
-      addPolygons(data = sle_malejobs_serv, label = ~settlement, fillColor= ~pal_binary(as.integer(malejobser)), fillOpacity = 0.8, weight = 2, group = "Male Jobs: Services") %>%
+      addPolygons(data = sle_malejobs_con, label = ~settlement, fillColor= ~pal_binary(as.factor(malejobcon)), fillOpacity = 0.6, weight = 2, group = "Male Jobs: Construction") %>%
+      addPolygons(data = sle_malejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.factor(malejobpet)), fillOpacity = 0.6, weight = 2, group = "Male Jobs: Petty Trading") %>%
+      addPolygons(data = sle_malejobs_agri, label = ~settlement, fillColor= ~pal_binary(as.factor(malejobagr)), fillOpacity = 0.6, weight = 2, group = "Male Jobs: Agriculture") %>%
+      addPolygons(data = sle_malejobs_serv, label = ~settlement, fillColor= ~pal_binary(as.factor(malejobser)), fillOpacity = 0.6, weight = 2, group = "Male Jobs: Services") %>%
+      addPolygons(data = sle_malejobs_food, label = ~settlement, fillColor= ~pal_binary(as.factor(malejobfoo)), fillOpacity = 0.6, weight = 2, group = "Male Jobs: Food") %>%
       #Female Jobs
-      addPolygons(data = sle_femalejobs_con, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobs)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Construction") %>%
-      addPolygons(data = sle_femalejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobp)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Petty Trading") %>%
-      addPolygons(data = sle_femalejobs_fish, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejobf)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Fishing") %>%
-      addPolygons(data = sle_femalejobs_do, label = ~settlement, fillColor= ~pal_binary(as.integer(femalejo_1)), fillOpacity = 0.8, weight = 2, group = "Female Jobs: Domestic") %>%
+      addPolygons(data = sle_femalejobs_con, label = ~settlement, fillColor= ~pal_binary(as.factor(femalejobc)), fillOpacity = 0.6, weight = 2, group = "Female Jobs: Construction") %>%
+      addPolygons(data = sle_femalejobs_petty, label = ~settlement, fillColor= ~pal_binary(as.factor(femalejobp)), fillOpacity = 0.6, weight = 2, group = "Female Jobs: Petty Trading") %>%
+      addPolygons(data = sle_femalejobs_agri, label = ~settlement, fillColor= ~pal_binary(as.factor(femalejoba)), fillOpacity = 0.6, weight = 2, group = "Female Jobs: Agriculture") %>%
+      addPolygons(data = sle_femalejobs_serv, label = ~settlement, fillColor= ~pal_binary(as.factor(femalejobs)), fillOpacity = 0.6, weight = 2, group = "Female Jobs: Services") %>%
+      addPolygons(data = sle_femalejobs_food, label = ~settlement, fillColor= ~pal_binary(as.factor(femalejobf)), fillOpacity = 0.6, weight = 2, group = "Female Jobs: Food") %>%
+      #Priorities for infrastructure access
+      addPolygons(data = sle_waterdrainage, label = ~settlement, fillColor= ~pal_percent(as.integer(water_drai)), fillOpacity = 0.7, weight = 2, group = "Priority: Water") %>%
+      addPolygons(data = sle_sanitation, label = ~settlement, fillColor= ~pal_percent(as.integer(sanitation)), fillOpacity = 0.7, weight = 2, group = "Priority: Sanitation") %>%
+      addPolygons(data = sle_electric, label = ~settlement, fillColor= ~pal_percent(as.integer(electricit)), fillOpacity = 0.7, weight = 2, group = "Priority: Electricity") %>%
+      addPolygons(data = sle_housing, label = ~settlement, fillColor= ~pal_percent(as.integer(housing)), fillOpacity = 0.7, weight = 2, group = "Priority: Housing") %>%
+      addPolygons(data = sle_tenuresecurity, label = ~settlement, fillColor= ~pal_percent(as.integer(tenure_sec)), fillOpacity = 0.7, weight = 2, group = "Priority: Tenure security") %>%
       addDrawToolbar(targetGroup = "drawnPoly", rectangleOptions = F, markerOptions = F, circleOptions=F,
                      editOptions = editToolbarOptions(selectedPathOptions = selectedPathOptions()), 
                      circleMarkerOptions = drawCircleMarkerOptions(color = "green"),
@@ -358,6 +368,8 @@ server <- function(input, output, session)
       })
 
 shinyApp(ui, server)
+
+
 
 #-----Lagos Map Information ---------------------------
 ng_ona <- read.csv('E:\\Open Reblock\\Datasets\\ng_sdi_services.csv')
