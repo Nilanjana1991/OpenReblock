@@ -22,6 +22,8 @@ library(htmltools)
 setwd("E:\\Open Reblock\\Shapefiles(Settlement Outlines)")
 
 #-----Mapping services point data  ---------------------------
+#All data used here is at https://uchicago.app.box.com/folder/76050592441 
+
 sle_ona <- read.csv('sle_sdi_services.csv')
 colnames(sle_ona ) <- tolower(gsub("[^[:alnum:]| ]", "", colnames(sle_ona )))
 
